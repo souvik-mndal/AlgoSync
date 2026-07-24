@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "AlgoSync AI",
+  "version": "1.0.0",
+  "description": "Automatically documents and visualizes your LeetCode solutions",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://leetcode.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/problems/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
