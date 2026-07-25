@@ -500,6 +500,19 @@
 console.log("AlgoSync AI: Waiting for Submit (click or Ctrl+Enter)...");
 
 let problemInfo = {};
+// async function saveSubmission(finalData) {
+//   try {
+//     await chrome.storage.local.set({
+//       latestSubmission: finalData
+//     });
+
+//     console.log("✅ Latest submission saved");
+
+//   } catch (error) {
+//     console.error("❌ Storage save failed:", error.message);
+//   }
+// }
+
 async function saveSubmission(finalData) {
   try {
     await chrome.storage.local.set({
@@ -507,6 +520,21 @@ async function saveSubmission(finalData) {
     });
 
     console.log("✅ Latest submission saved");
+
+    if (finalData.code) {
+      console.log("🤖 Requesting AI explanation...");
+      chrome.runtime.sendMessage(
+        { type: "GENERATE_EXPLANATION", data: finalData },
+        (response) => {
+          if (response && response.success) {
+            console.log("✅ AI Explanation:", response.explanation);
+            chrome.storage.local.set({ latestExplanation: response.explanation });
+          } else {
+            console.error("❌ AI explanation failed:", response?.error);
+          }
+        }
+      );
+    }
 
   } catch (error) {
     console.error("❌ Storage save failed:", error.message);

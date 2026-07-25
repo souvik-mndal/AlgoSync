@@ -4,7 +4,13 @@
   "version": "1.0.0",
   "description": "Automatically documents and visualizes your LeetCode solutions",
   "permissions": ["storage", "activeTab"],
-  "host_permissions": ["https://leetcode.com/*"],
+  "host_permissions": [
+    "https://leetcode.com/*",
+    "https://cool-mode-3295.algosync-svk.workers.dev/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/problems/*"],
