@@ -21,7 +21,17 @@ async function generateExplanation(problemData) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error?.message || "Worker request failed");
+    console.error("Worker error details:", data);
+    const status = data.error?.status;
+    let friendlyMessage = "Something went wrong";
+    if (status === "UNAVAILABLE") {
+        friendlyMessage = "Gemini is busy right now";
+    } else if (status === "RESOURCE_EXHAUSTED") {
+        friendlyMessage = "Daily AI limit reached";
+    } else if (data.error?.message) {
+        friendlyMessage = data.error.message.slice(0, 60);
+    }
+    throw new Error(friendlyMessage);
   }
 
   return data.explanation;

@@ -513,33 +513,142 @@ let problemInfo = {};
 //   }
 // }
 
+// async function saveSubmission(finalData) {
+//   try {
+//     await chrome.storage.local.set({
+//       latestSubmission: finalData
+//     });
+
+//     console.log("✅ Latest submission saved");
+
+//     if (finalData.code) {
+//       console.log("🤖 Requesting AI explanation...");
+//       chrome.runtime.sendMessage(
+//         { type: "GENERATE_EXPLANATION", data: finalData },
+//         (response) => {
+//           if (response && response.success) {
+//             console.log("✅ AI Explanation:", response.explanation);
+//             chrome.storage.local.set({ latestExplanation: response.explanation });
+//           } else {
+//             console.error("❌ AI explanation failed:", response?.error);
+//           }
+//         }
+//       );
+//     }
+
+//   } catch (error) {
+//     console.error("❌ Storage save failed:", error.message);
+//   }
+// }
+
+
 async function saveSubmission(finalData) {
   try {
-    await chrome.storage.local.set({
-      latestSubmission: finalData
-    });
-
-    console.log("✅ Latest submission saved");
-
-    if (finalData.code) {
-      console.log("🤖 Requesting AI explanation...");
-      chrome.runtime.sendMessage(
-        { type: "GENERATE_EXPLANATION", data: finalData },
-        (response) => {
-          if (response && response.success) {
-            console.log("✅ AI Explanation:", response.explanation);
-            chrome.storage.local.set({ latestExplanation: response.explanation });
-          } else {
-            console.error("❌ AI explanation failed:", response?.error);
-          }
-        }
-      );
+    if (!finalData.code) {
+      await chrome.storage.local.set({ latestSubmission: finalData });
+      console.log("⚠️ No code captured — likely a real failed submission OR a scraping issue");
+      algosyncToast("failed", "Couldn't read your code", "Try resubmitting");
+      return;
     }
+
+    const problemNumber = finalData.problemNumber;
+    const decision = await shouldCallAI(problemNumber, finalData.code, finalData.language);
+
+    console.log(`🔍 Decision: ${decision.call ? "Call AI" : "Skip AI"} — ${decision.reason}`);
+
+    const result = await chrome.storage.local.get("submissions");
+    const submissions = result.submissions || {};
+
+    if (!decision.call) {
+      submissions[problemNumber] = {
+        ...submissions[problemNumber],
+        ...finalData,
+        explanation: submissions[problemNumber].explanation,
+      };
+      await chrome.storage.local.set({ submissions });
+      console.log("⏭️ Skipped AI call — code unchanged");
+      algosyncToast("ready", "Already documented");
+      return;
+    }
+
+    console.log("🤖 Requesting AI explanation before saving...");
+    algosyncToast("generating");
+
+    chrome.runtime.sendMessage(
+      { type: "GENERATE_EXPLANATION", data: finalData },
+      async (response) => {
+        if (response && response.success) {
+          console.log("✅ AI Explanation:", response.explanation);
+          algosyncToast("ready");
+
+          const updated = await chrome.storage.local.get("submissions");
+          const subs = updated.submissions || {};
+          subs[problemNumber] = { ...finalData, explanation: response.explanation };
+          await chrome.storage.local.set({ submissions: subs });
+        } else {
+          console.error("❌ AI explanation failed:", response?.error);
+          algosyncToast("failed", null, response?.error || "Explanation wasn't saved");
+        }
+      }
+    );
 
   } catch (error) {
     console.error("❌ Storage save failed:", error.message);
   }
 }
+
+
+function normalizeCode(code, language) {
+  if (!code) return "";
+
+  let cleaned = code;
+  const lang = (language || "").toLowerCase();
+
+  if (lang.includes("python")) {
+    cleaned = cleaned.replace(/#.*$/gm, "");
+    cleaned = cleaned.replace(/'''[\s\S]*?'''/g, "");
+    cleaned = cleaned.replace(/"""[\s\S]*?"""/g, "");
+  } else if (lang.includes("ruby")) {
+    cleaned = cleaned.replace(/#.*$/gm, "");
+    cleaned = cleaned.replace(/=begin[\s\S]*?=end/g, "");
+  } else if (lang.includes("elixir")) {
+    cleaned = cleaned.replace(/#.*$/gm, "");
+  } else if (lang.includes("erlang")) {
+    cleaned = cleaned.replace(/%.*$/gm, "");
+  } else if (lang.includes("racket")) {
+    cleaned = cleaned.replace(/;.*$/gm, "");
+    cleaned = cleaned.replace(/#\|[\s\S]*?\|#/g, "");
+  } else {
+    // Default: C-style (C++, Java, JS, TS, C#, C, Go, Kotlin, Swift, Rust, PHP, Dart, Scala)
+    cleaned = cleaned.replace(/\/\/.*$/gm, "");
+    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, "");
+  }
+
+  return cleaned.replace(/\s+/g, " ").trim();
+}
+
+
+async function shouldCallAI(problemNumber, newCode, language) {
+  const result = await chrome.storage.local.get("submissions");
+  const submissions = result.submissions || {};
+  const existing = submissions[problemNumber];
+
+  if (!existing) {
+    return { call: true, reason: "new problem" };
+  }
+  if (!existing.explanation) {
+    return { call: true, reason: "no explanation yet — retrying" };
+  }
+  const normalizedNew = normalizeCode(newCode, language);
+  const normalizedOld = normalizeCode(existing.code, existing.language);
+
+  if (normalizedNew === normalizedOld) {
+    return { call: false, reason: "unchanged code" };
+  }
+
+  return { call: true, reason: "code changed" };
+}
+
 
 /* =========================================================================
  * DESCRIPTION-TAB PARSER
@@ -783,6 +892,7 @@ document.addEventListener('click', function (event) {
   const submitBtn = event.target.closest('[data-e2e-locator="console-submit-button"]');
   if (submitBtn) {
     console.log("🖱️ Submit button clicked! Refreshing problem info...");
+    algosyncToast("submitting");
     captureProblemDescription();
     waitForSubmissionOutcome();
   }
@@ -792,6 +902,7 @@ document.addEventListener('keydown', function (event) {
   const isSubmitShortcut = (event.ctrlKey || event.metaKey) && event.key === 'Enter';
   if (isSubmitShortcut) {
     console.log("⌨️ Ctrl+Enter / Cmd+Enter detected! Refreshing problem info...");
+    algosyncToast("submitting");
     captureProblemDescription();
     waitForSubmissionOutcome();
   }
@@ -866,15 +977,34 @@ function waitForSubmissionOutcome(safetyNetMs = 8000) {
   }, safetyNetMs);
 }
 
-function handleOutcome(outcome) {
-  if (outcome.status === "accepted") {
-    console.log("✅ Accepted (or all testcases passed)! Capturing details...");
-    captureAcceptedDetails(outcome.marker);
+// function handleOutcome(outcome) {
+//   if (outcome.status === "accepted") {
+//     console.log("✅ Accepted (or all testcases passed)! Capturing details...");
+//     captureAcceptedDetails(outcome.marker);
+//   } else {
+//     console.log(`❌ Submission failed (${outcome.summary ? outcome.summary.text : "unknown"} testcases passed) — saving empty result.`);
+//     const finalData = {};
+//     console.log("📦 FINAL Submission Data:", finalData);
+//     // chrome.storage.local.set({ latestSubmission: finalData });
+//     saveSubmission(finalData);
+//   }
+// }
+
+
+
+  function handleOutcome(outcome) {
+    if (outcome.status === "accepted") {
+      algosyncToast("accepted");
+      console.log("✅ Accepted (or all testcases passed)! Capturing details...");
+      captureAcceptedDetails(outcome.marker).catch((err) => {
+      console.error("❌ captureAcceptedDetails crashed:", err);
+      algosyncToast("failed", "Something broke while reading your code");
+    });
   } else {
+    algosyncToast("notAccepted");
     console.log(`❌ Submission failed (${outcome.summary ? outcome.summary.text : "unknown"} testcases passed) — saving empty result.`);
     const finalData = {};
     console.log("📦 FINAL Submission Data:", finalData);
-    // chrome.storage.local.set({ latestSubmission: finalData });
     saveSubmission(finalData);
   }
 }
