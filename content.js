@@ -989,33 +989,6 @@ function findAcceptedMarker() {
   return null;
 }
 
-// function checkOutcomeNow() {
-//   const acceptedMarker = findAcceptedMarker();
-//   if (acceptedMarker) {
-//     return { status: "accepted", marker: acceptedMarker };
-//   }
-
-//   const summary = findTestCaseSummary();
-//   if (summary) {
-//     if (summary.total === 0 && summary.passed === 0) {
-//       return { status: "failed", summary };
-//     }
-//     // if (summary.passed < summary.total) {
-//     //   return { status: "failed", summary };
-//     // }
-//     if (summary.passed < summary.total) {
-//       return null;
-//     }
-//     if (summary.passed === summary.total && summary.total > 0) {
-//       return { status: "accepted", marker: null };
-//     }
-//   }
-
-//   return null;
-// }
-let lastSummaryKey = null;
-let stableSummaryCount = 0;
-
 function checkOutcomeNow() {
   const acceptedMarker = findAcceptedMarker();
   if (acceptedMarker) {
@@ -1027,32 +1000,92 @@ function checkOutcomeNow() {
     if (summary.total === 0 && summary.passed === 0) {
       return { status: "failed", summary };
     }
-
+    // if (summary.passed < summary.total) {
+    //   return { status: "failed", summary };
+    // }
+    if (summary.passed < summary.total) {
+      return null;
+    }
     if (summary.passed === summary.total && summary.total > 0) {
       return { status: "accepted", marker: null };
-    }
-
-    if (summary.passed < summary.total) {
-      const key = summary.text;
-      if (key === lastSummaryKey) {
-        stableSummaryCount++;
-      } else {
-        stableSummaryCount = 1;
-        lastSummaryKey = key;
-      }
-      if (stableSummaryCount >= 12) {
-        return { status: "failed", summary };
-      }
-      return null;
     }
   }
 
   return null;
 }
+// let lastSummaryKey = null;
+// let stableSummaryCount = 0;
+
+// function checkOutcomeNow() {
+//   const acceptedMarker = findAcceptedMarker();
+//   if (acceptedMarker) {
+//     return { status: "accepted", marker: acceptedMarker };
+//   }
+
+//   const summary = findTestCaseSummary();
+//   if (summary) {
+//     if (summary.total === 0 && summary.passed === 0) {
+//       return { status: "failed", summary };
+//     }
+
+//     if (summary.passed === summary.total && summary.total > 0) {
+//       return { status: "accepted", marker: null };
+//     }
+
+//     if (summary.passed < summary.total) {
+//       const key = summary.text;
+//       if (key === lastSummaryKey) {
+//         stableSummaryCount++;
+//       } else {
+//         stableSummaryCount = 1;
+//         lastSummaryKey = key;
+//       }
+//       if (stableSummaryCount >= 12) {
+//         return { status: "failed", summary };
+//       }
+//       return null;
+//     }
+//   }
+
+//   return null;
+// }
 
 
 
-// function waitForSubmissionOutcome(safetyNetMs = 8000) {
+function waitForSubmissionOutcome(safetyNetMs = 13000) {
+  const immediate = checkOutcomeNow();
+  if (immediate) {
+    handleOutcome(immediate);
+    return;
+  }
+
+  const observer = new MutationObserver(() => {
+    const outcome = checkOutcomeNow();
+    if (outcome) {
+      observer.disconnect();
+      clearTimeout(safetyTimer);
+      handleOutcome(outcome);
+    }
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+  // const safetyTimer = setTimeout(() => {
+  //   observer.disconnect();
+  //   console.log("⏱️ No result detected within 8s — LeetCode may be slow or something broke. Try again.");
+  // }, safetyNetMs);
+  const safetyTimer = setTimeout(() => {
+    observer.disconnect();
+    console.log("⏱️ No result detected within 13s — LeetCode may be slow or something broke. Try again.");
+    algosyncToast("failed", "Couldn't detect result", "Try resubmitting");
+  }, safetyNetMs);
+}
+
+
+// function waitForSubmissionOutcome(safetyNetMs = 12000) {
+//   lastSummaryKey = null;
+//   stableSummaryCount = 0;
+
 //   const immediate = checkOutcomeNow();
 //   if (immediate) {
 //     handleOutcome(immediate);
@@ -1073,37 +1106,9 @@ function checkOutcomeNow() {
 //   const safetyTimer = setTimeout(() => {
 //     observer.disconnect();
 //     console.log("⏱️ No result detected within 8s — LeetCode may be slow or something broke. Try again.");
+//     algosyncToast("failed", "Couldn't detect result", "Try resubmitting");
 //   }, safetyNetMs);
 // }
-
-
-function waitForSubmissionOutcome(safetyNetMs = 8000) {
-  lastSummaryKey = null;
-  stableSummaryCount = 0;
-
-  const immediate = checkOutcomeNow();
-  if (immediate) {
-    handleOutcome(immediate);
-    return;
-  }
-
-  const observer = new MutationObserver(() => {
-    const outcome = checkOutcomeNow();
-    if (outcome) {
-      observer.disconnect();
-      clearTimeout(safetyTimer);
-      handleOutcome(outcome);
-    }
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-
-  const safetyTimer = setTimeout(() => {
-    observer.disconnect();
-    console.log("⏱️ No result detected within 8s — LeetCode may be slow or something broke. Try again.");
-    algosyncToast("failed", "Couldn't detect result", "Try resubmitting");
-  }, safetyNetMs);
-}
 
 
 
