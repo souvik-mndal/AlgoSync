@@ -21,18 +21,20 @@ async function generateExplanation(problemData) {
   const data = await response.json();
 
   if (!response.ok) {
-    console.error("Worker error details:", data);
-    const status = data.error?.status;
-    let friendlyMessage = "Something went wrong";
-    if (status === "UNAVAILABLE") {
-        friendlyMessage = "Gemini is busy right now";
-    } else if (status === "RESOURCE_EXHAUSTED") {
-        friendlyMessage = "Daily AI limit reached";
-    } else if (data.error?.message) {
-        friendlyMessage = data.error.message.slice(0, 60);
-    }
-    throw new Error(friendlyMessage);
+  console.error("Worker error details:", data);
+  const status = (data.error?.status || "").toUpperCase();
+  const msg = (data.error?.message || "").toLowerCase();
+  let friendlyMessage = "Please try again";
+
+  if (status === "UNAVAILABLE" || msg.includes("high demand")) {
+    friendlyMessage = "Gemini is busy right now";
+  } else if (status === "RESOURCE_EXHAUSTED" || msg.includes("quota")) {
+    friendlyMessage = "Daily AI limit reached";
+  } else if (data.error?.message) {
+    friendlyMessage = data.error.message.slice(0, 60);
   }
+  throw new Error(friendlyMessage);
+}
 
   return data.explanation;
 }
