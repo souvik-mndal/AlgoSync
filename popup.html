@@ -1,12 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
+  <title>AlgoSync AI</title>
   <style>
-    body { width: 200px; padding: 10px; font-family: Arial; }
+    body {
+      width: 260px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    h2 {
+      font-size: 16px;
+      margin: 0 0 16px 0;
+    }
+    #github-status {
+      font-size: 13px;
+      margin-bottom: 12px;
+      min-height: 18px;
+    }
+    #github-status.connected {
+      color: #22c55e;
+    }
+    #github-status.error {
+      color: #ef4444;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #24292f;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #32383f;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
   </style>
 </head>
 <body>
-  <h3>AlgoSync AI</h3>
-  <p>Status: Extension Active ✅</p>
+  <h2>AlgoSync AI</h2>
+  <div id="github-status">Checking GitHub connection...</div>
+  <button id="connect-btn">Connect GitHub</button>
+
+  <script src="popup.js"></script>
 </body>
 </html>
