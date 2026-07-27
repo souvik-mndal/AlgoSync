@@ -3,10 +3,12 @@
   "name": "AlgoSync AI",
   "version": "1.0.0",
   "description": "Automatically documents and visualizes your LeetCode solutions",
-  "permissions": ["storage", "activeTab", "unlimitedStorage"],
+  "permissions": ["storage", "activeTab", "unlimitedStorage", "identity"],
   "host_permissions": [
     "https://leetcode.com/*",
-    "https://cool-mode-3295.algosync-svk.workers.dev/*"
+    "https://cool-mode-3295.algosync-svk.workers.dev/*",
+    "https://github.com/*",
+    "https://api.github.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -14,7 +16,7 @@
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/problems/*"],
-      "js": ["toast.js","content.js"]
+      "js": ["toast.js", "content.js"]
     }
   ],
   "action": {
