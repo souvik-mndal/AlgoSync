@@ -247,7 +247,7 @@
       color: #6e6a63;
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 10px;
       flex-shrink: 0;
     }
 
@@ -409,9 +409,9 @@
   gap: 7px;
   margin-bottom: 8px;
 }
-.search-box i {
-  font-size: 14px;
+.search-box svg {
   color: #5a5750;
+  flex-shrink: 0;
 }
 .search-box input {
   background: transparent;
@@ -571,7 +571,10 @@
   <!-- EXISTING REPO MODE -->
   <div id="existing-repo-mode" style="display: none;">
     <div class="search-box">
-      <i class="ti ti-search"></i>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
       <input type="text" id="repo-search" placeholder="Search your repos..." />
     </div>
     <div class="repo-list" id="repo-list"></div>
@@ -616,7 +619,9 @@
           <div class="ring-center">
             <span id="total-solved">0</span>
             <div class="ring-solved-label">
-              <i class="ti ti-check"></i>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
               <span>Solved</span>
             </div>
           </div>
