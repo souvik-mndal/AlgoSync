@@ -377,11 +377,11 @@
   background: #1e2419;
   border: 1px solid #3a5a2e;
 }
-.visibility-option i {
-  font-size: 15px;
+.visibility-option svg {
   color: #83807a;
+  flex-shrink: 0;
 }
-.visibility-option.selected i {
+.visibility-option.selected svg {
   color: #7cc576;
 }
 
@@ -527,14 +527,21 @@
     <label class="field-label" style="margin-top: 14px;">Visibility</label>
     <div class="visibility-row">
       <div class="visibility-option selected" id="vis-public" data-value="public">
-        <i class="ti ti-world"></i>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
         <div>
           <div class="vis-title">Public</div>
           <div class="vis-sub">Recommended</div>
         </div>
       </div>
       <div class="visibility-option" id="vis-private" data-value="private">
-        <i class="ti ti-lock"></i>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="11" width="14" height="10" rx="2"/>
+          <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+        </svg>
         <div class="vis-title">Private</div>
       </div>
     </div>
