@@ -148,6 +148,13 @@
       sub: null,
       icon: "check",
     },
+    pushed: {
+      bg: "linear-gradient(135deg, #6366f1, #4f46e5)",
+      shadow: "0 8px 28px rgba(99, 102, 241, 0.45)",
+      text: "Pushed to GitHub",
+      sub: null,
+      icon: "check",
+    },
     failed: {
       bg: "linear-gradient(135deg, #ef4444, #dc2626)",
       shadow: "0 8px 28px rgba(239, 68, 68, 0.45)",
@@ -195,7 +202,7 @@
     void el.offsetWidth; // force reflow so re-trigger animates even if same state fires again
     requestAnimationFrame(() => el.classList.add("show"));
 
-    if (stateKey === "ready" || stateKey === "failed" || stateKey === "notAccepted") {
+    if (stateKey === "ready" || stateKey === "failed" || stateKey === "notAccepted" || stateKey === "pushed") {
       hideTimer = setTimeout(() => {
         el.classList.remove("show");
       }, 3200);

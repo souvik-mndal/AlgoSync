@@ -598,17 +598,32 @@ async function saveSubmission(finalData) {
     algosyncToast("generating");
 
     chrome.runtime.sendMessage(
-      { type: "GENERATE_EXPLANATION", data: finalData },
-      async (response) => {
-        if (response && response.success) {
-          console.log("✅ AI Explanation:", response.explanation);
-          algosyncToast("ready");
+    { type: "GENERATE_EXPLANATION", data: finalData },
+    async (response) => {
+      if (response && response.success) {
+        console.log("✅ AI Explanation:", response.explanation);
+        algosyncToast("ready");
 
-          const updated = await chrome.storage.local.get("submissions");
-          const subs = updated.submissions || {};
-          subs[problemNumber] = { ...finalData, explanation: response.explanation };
-          await chrome.storage.local.set({ submissions: subs });
-        } else {
+        const updated = await chrome.storage.local.get("submissions");
+        const subs = updated.submissions || {};
+        const fullData = { ...finalData, explanation: response.explanation };
+        subs[problemNumber] = fullData;
+        await chrome.storage.local.set({ submissions: subs });
+
+        const pushData = { ...fullData, _isUpdate: decision.reason === "code changed" };
+        chrome.runtime.sendMessage(
+          { type: "PUSH_TO_GITHUB", data: pushData },
+          (pushResponse) => {
+            if (pushResponse && pushResponse.success) {
+              console.log("✅ Pushed to GitHub");
+              algosyncToast("pushed");
+            } else {
+              console.error("❌ GitHub push failed:", pushResponse?.error);
+              algosyncToast("failed", "Notes saved, but GitHub push failed", pushResponse?.error);
+            }
+          }
+        );
+      } else {
           console.error("❌ AI explanation failed:", response?.error);
           const errMsg = response?.error || "Explanation wasn't saved";
           algosyncToast("failed", "Couldn't generate notes", errMsg);
