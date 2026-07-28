@@ -4,52 +4,390 @@
   <meta charset="UTF-8">
   <title>AlgoSync AI</title>
   <style>
+    html, body {
+      width: 300px;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
     body {
-      width: 260px;
       padding: 20px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #1a1a1a;
-      color: #fff;
+      background: #131313;
+      color: #efece5;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      border-radius: 14px;
+      overflow: hidden;
     }
-    h2 {
-      font-size: 16px;
-      margin: 0 0 16px 0;
+
+    .brand {
+      font-size: 12px;
+      font-weight: 500;
+      color: #6e6a63;
+      letter-spacing: 0.3px;
     }
-    #github-status {
-      font-size: 13px;
-      margin-bottom: 12px;
-      min-height: 18px;
+
+    /* ---------- View containers ---------- */
+    .view {
+      display: none;
+      flex-direction: column;
+      flex-grow: 1;
+      gap: 14px;
     }
-    #github-status.connected {
-      color: #22c55e;
+    .view.active {
+      display: flex;
     }
-    #github-status.error {
-      color: #ef4444;
+
+    /* ---------- State 1: not connected ---------- */
+    #view-disconnected {
+      height: 360px;
     }
-    button {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 8px;
-      background: #24292f;
-      color: #fff;
-      font-size: 14px;
+
+    #view-disconnected .copy {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .headline {
+      /* font-family: Georgia, "Times New Roman", serif; */
+      font-size: 27px;
+      font-weight: 400;
+      color: #efece5;
+      margin: 0 0 10px 0;
+      line-height: 1.3;
+    }
+
+    .subtext {
+      font-size: 12.5px;
+      color: #83807a;
+      margin: 0;
+      line-height: 1.6;
+      max-width: 220px;
+    }
+
+    /* ---------- Account row (states 2 & 3) ---------- */
+    .account-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .account-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #1e1e1b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #efece5;
+    }
+
+    .account-name {
+      font-size: 13.5px;
       font-weight: 600;
+      color: #efece5;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4a9b6e;
+      flex-shrink: 0;
+    }
+
+    /* ---------- State 2: connected, no data ---------- */
+    #view-empty {
+      height: 300px;
+    }
+
+    #view-empty .copy {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    #view-empty .headline {
+      font-size: 20px;
+    }
+
+    /* ---------- State 3: connected, has data ---------- */
+    .ring-row {
+      /* background-color: yellow; */
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .ring-wrap {
+      position: relative;
+      width: 126px;
+      height: 126px;
+      flex-shrink: 0;
+    }
+
+    .ring-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #total-solved {
+      /* font-family: Georgia, "Times New Roman", serif; */
+      font-weight: 400;
+      color: #efece5;
+      line-height: 1;
+    }
+
+    .ring-solved-label {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 2.5px;
+      color: #4a9b6e;
+      font-size: 12px;
+    }
+
+    .diff-boxes {
+      /* background-color: red; */
+      display: flex;
+      flex-direction: column;
+      align-items: end;
+      gap: 4px;
+      flex-grow: 1;
+    }
+
+    .diff-box {
+      border-radius: 6px;
+      /* background-color: green; */
+      padding: 10px 10px 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 95%;
+    }
+    .diff-box.easy { background: #191b18; border: 0.5px solid #262922; }
+    .diff-box.medium { background: #1b1a17; border: 0.5px solid #2b2823; }
+    .diff-box.hard { background: #1c1817; border: 0.5px solid #2c2320; }
+
+    .diff-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+    .diff-box.easy .diff-label { color: #5fae82; }
+    .diff-box.medium .diff-label { color: #d9a862; }
+    .diff-box.hard .diff-label { color: #d67470; }
+
+    .diff-count {
+      font-size: 14px;
+      font-weight: 500;
+      color: #efece5;
+    }
+
+    .recent-section {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .recent-heading {
+      font-size: 10.5px;
+      color: #6e6a63;
+      letter-spacing: 0.3px;
+      margin-bottom: 8px;
+    }
+
+    .recent-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .recent-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 0.5px solid #1e1e1b;
+      text-decoration: none;
       cursor: pointer;
     }
-    button:hover {
-      background: #32383f;
+    .recent-row:last-child {
+      border-bottom: none;
     }
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
+
+    .recent-name {
+      font-size: 13px;
+      color: #efece5;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-right: 10px;
     }
+
+    .recent-time {
+      font-size: 11px;
+      color: #6e6a63;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    /* ---------- Buttons ---------- */
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: none;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    button:disabled { opacity: 0.5; cursor: default; }
+    button svg, button i { flex-shrink: 0; }
+
+    #connect-btn {
+      background: #efece5;
+      color: #131313;
+      padding: 13px;
+      font-size: 13.5px;
+    }
+    #connect-btn:hover {
+      opacity: 0.92;
+    }
+
+    #disconnect-btn {
+      background: transparent;
+      border: 0.5px solid #2a2a26;
+      color: #83807a;
+      margin-top: auto;
+    }
+    #disconnect-btn:hover {
+      background: #3a1614;
+      border-color: #5a2320;
+      color: #f0a5a0;
+    }
+
+    #status-text {
+      font-size: 11.5px;
+      color: #6e6a63;
+      text-align: center;
+      min-height: 16px;
+    }
+    #status-text.error { color: #b5564f; }
   </style>
 </head>
 <body>
-  <h2>AlgoSync AI</h2>
-  <div id="github-status">Checking GitHub connection...</div>
-  <button id="connect-btn">Connect GitHub</button>
+  <span class="brand">AlgoSync</span>
+
+  <!-- STATE 1: Not connected -->
+  <div class="view" id="view-disconnected">
+    <div class="copy">
+      <p class="headline">Connect your<br>GitHub account</p>
+      <p class="subtext">Your solved problems, published as a living portfolio.</p>
+    </div>
+    <button id="connect-btn">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+      <span id="btn-text">Connect GitHub</span>
+    </button>
+    <div id="status-text"></div>
+  </div>
+
+  <!-- STATE 2 & 3 share the account row, then branch -->
+  <div class="view" id="view-connected">
+    <div class="account-row">
+      <div class="account-avatar">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </div>
+      <span class="account-name" id="account-name">souvik-mndal</span>
+      <div class="status-dot"></div>
+    </div>
+
+    <!-- STATE 2: connected, no submissions -->
+    <div class="view" id="view-empty">
+      <div class="copy">
+        <p class="headline">Nothing solved<br>yet</p>
+        <p class="subtext">Solve something on LeetCode — it'll show up right here.</p>
+      </div>
+    </div>
+
+    <!-- STATE 3: connected, has submissions -->
+    <div class="view" id="view-stats">
+      <div class="ring-row">
+        <div class="ring-wrap">
+          <svg width="126" height="126" viewBox="0 0 126 126">
+            <circle cx="63" cy="63" r="54" fill="none" stroke="#1c1c19" stroke-width="7"/>
+            <circle id="ring-easy" cx="63" cy="63" r="54" fill="none" stroke="#4a9b6e" stroke-width="7" stroke-linecap="round" transform="rotate(-90 63 63)"/>
+            <circle id="ring-medium" cx="63" cy="63" r="54" fill="none" stroke="#c9955a" stroke-width="7" stroke-linecap="round" transform="rotate(-90 63 63)"/>
+            <circle id="ring-hard" cx="63" cy="63" r="54" fill="none" stroke="#b5564f" stroke-width="7" stroke-linecap="round" transform="rotate(-90 63 63)"/>
+          </svg>
+          <div class="ring-center">
+            <span id="total-solved">0</span>
+            <div class="ring-solved-label">
+              <i class="ti ti-check"></i>
+              <span>Solved</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="diff-boxes">
+          <div class="diff-box easy">
+            <span class="diff-label">EASY</span>
+            <span class="diff-count" id="count-easy">0</span>
+          </div>
+          <div class="diff-box medium">
+            <span class="diff-label">MEDIUM</span>
+            <span class="diff-count" id="count-medium">0</span>
+          </div>
+          <div class="diff-box hard">
+            <span class="diff-label">HARD</span>
+            <span class="diff-count" id="count-hard">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="recent-section">
+        <div class="recent-heading">RECENT</div>
+        <div class="recent-list" id="recent-list"></div>
+      </div>
+    </div>
+
+    <button id="disconnect-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      Disconnect
+    </button>
+  </div>
 
   <script src="popup.js"></script>
 </body>
