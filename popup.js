@@ -316,11 +316,14 @@ async function init() {
   }
 
   if (!result.repoName) {
-    repoSelectAccountName.textContent = result.githubUsername;
-    showTopView(viewRepoSelect);
-    loadExistingRepos(result.githubToken); // pre-fetch so tab switch feels instant
-    return;
-  }
+  repoSelectAccountName.textContent = result.githubUsername;
+  repoSelectStatus.textContent = "";
+  repoSelectStatus.className = "repo-status";
+  repoConfirmBtn.disabled = false;
+  showTopView(viewRepoSelect);
+  loadExistingRepos(result.githubToken);
+  return;
+}
 
   accountName.textContent = `${result.githubUsername} · ${result.repoName}`;
   showTopView(viewConnected);
@@ -425,6 +428,7 @@ function switchToNewMode() {
   existingRepoMode.style.display = "none";
   repoConfirmBtn.textContent = "Create & Connect";
   repoSelectStatus.textContent = "";
+  repoConfirmBtn.classList.remove("muted");
 }
 
 function switchToExistingMode() {
@@ -435,6 +439,7 @@ function switchToExistingMode() {
   existingRepoMode.style.display = "block";
   repoConfirmBtn.textContent = "Connect Repo";
   repoSelectStatus.textContent = "";
+  updateConfirmButtonState();
 }
 
 tabNew.addEventListener("click", switchToNewMode);
@@ -489,10 +494,19 @@ function renderRepoList(repos) {
     item.addEventListener("click", () => {
       selectedExistingRepo = repo.name;
       renderRepoList(fetchedRepos.filter(matchesSearch));
+      updateConfirmButtonState();
     });
 
     repoListEl.appendChild(item);
   });
+}
+
+function updateConfirmButtonState() {
+  if (currentMode === "existing" && !selectedExistingRepo) {
+    repoConfirmBtn.classList.add("muted");
+  } else {
+    repoConfirmBtn.classList.remove("muted");
+  }
 }
 
 function matchesSearch(repo) {
@@ -525,7 +539,12 @@ repoConfirmBtn.addEventListener("click", async () => {
       repoSelectStatus.className = "repo-status error";
       return;
     }
+    repoConfirmBtn.disabled = true;
+    repoSelectStatus.textContent = "Connecting repository...";
+    repoSelectStatus.className = "repo-status";
+
     await chrome.storage.local.set({ repoName: selectedExistingRepo });
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     init();
   }
 });

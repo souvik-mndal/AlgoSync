@@ -5,7 +5,7 @@
   <title>AlgoSync AI</title>
   <style>
     html, body {
-      width: 300px;
+      width: 320px;
       margin: 0;
     }
 
@@ -463,9 +463,11 @@
   padding: 12px;
   font-size: 13.5px;
   font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
-#repo-confirm-btn:disabled {
-  opacity: 0.5;
+#repo-confirm-btn.muted {
+  background: #262622;
+  color: #6e6a63;
 }
 
 .repo-status {
@@ -476,6 +478,25 @@
 }
 .repo-status.error {
   color: #b5564f;
+}
+
+
+.repo-list {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a34 transparent;
+}
+.repo-list::-webkit-scrollbar {
+  width: 6px;
+}
+.repo-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.repo-list::-webkit-scrollbar-thumb {
+  background: #3a3a34;
+  border-radius: 10px;
+}
+.repo-list::-webkit-scrollbar-thumb:hover {
+  background: #4a4a44;
 }
   </style>
 </head>
@@ -558,8 +579,8 @@
 
   <div style="flex-grow: 1;"></div>
 
-  <div id="repo-select-status" class="repo-status"></div>
   <button id="repo-confirm-btn">Create & Connect</button>
+  <div id="repo-select-status" class="repo-status"></div>
 </div>
 
   <!-- STATE 2 & 3 share the account row, then branch -->
