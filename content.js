@@ -560,6 +560,13 @@ function getEmbeddedQuestionData() {
 
 async function saveSubmission(finalData) {
   try {
+    const { repoName } = await chrome.storage.local.get("repoName");
+    if (!repoName) {
+      console.log("⚠️ No repo connected — skipping AI call");
+      algosyncToast("failed", "Please connect a repo", "Click the extension icon");
+      return;
+    }
+    
     if (!finalData.code) {
       await chrome.storage.local.set({ latestSubmission: finalData });
       console.log("⚠️ No code captured — likely a real failed submission OR a scraping issue");

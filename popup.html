@@ -298,6 +298,185 @@
       min-height: 16px;
     }
     #status-text.error { color: #b5564f; }
+
+
+
+    /* ---------- Repo Selection Screen ---------- */
+#view-repo-select {
+  height: auto;
+}
+
+.repo-select-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #efece5;
+  margin: 0 0 4px 0;
+}
+
+.repo-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.repo-tab {
+  flex: 1;
+  padding: 9px;
+  border-radius: 8px;
+  background: transparent;
+  border: 0.5px solid #2a2a26;
+  color: #83807a;
+  font-size: 12px;
+  font-weight: 500;
+}
+.repo-tab.active {
+  background: #efece5;
+  border: none;
+  color: #131313;
+  font-weight: 600;
+}
+
+.field-label {
+  font-size: 11px;
+  color: #6e6a63;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.text-input {
+  width: 100%;
+  background: #191917;
+  border: 0.5px solid #262622;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #efece5;
+  font-size: 13px;
+  font-family: inherit;
+}
+.text-input:focus {
+  outline: none;
+  border-color: #4a4a44;
+}
+
+.visibility-row {
+  display: flex;
+  gap: 8px;
+}
+
+.visibility-option {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  background: #191917;
+  border: 0.5px solid #262622;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.visibility-option.selected {
+  background: #1e2419;
+  border: 1px solid #3a5a2e;
+}
+.visibility-option i {
+  font-size: 15px;
+  color: #83807a;
+}
+.visibility-option.selected i {
+  color: #7cc576;
+}
+
+.vis-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c7c4bd;
+}
+.visibility-option.selected .vis-title {
+  color: #efece5;
+}
+
+.vis-sub {
+  font-size: 9.5px;
+  color: #7cc576;
+}
+
+.search-box {
+  background: #191917;
+  border: 0.5px solid #262622;
+  border-radius: 8px;
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+.search-box i {
+  font-size: 14px;
+  color: #5a5750;
+}
+.search-box input {
+  background: transparent;
+  border: none;
+  color: #efece5;
+  font-size: 12.5px;
+  width: 100%;
+  font-family: inherit;
+}
+.search-box input::placeholder {
+  color: #5a5750;
+}
+.search-box input:focus {
+  outline: none;
+}
+
+.repo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.repo-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #efece5;
+}
+.repo-list-item:hover {
+  background: #1c1c19;
+}
+.repo-list-item.selected {
+  background: #1e2419;
+}
+.repo-list-item .repo-visibility-tag {
+  font-size: 10px;
+  color: #5a5750;
+}
+
+#repo-confirm-btn {
+  background: #efece5;
+  color: #131313;
+  padding: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+#repo-confirm-btn:disabled {
+  opacity: 0.5;
+}
+
+.repo-status {
+  font-size: 11.5px;
+  color: #6e6a63;
+  text-align: center;
+  min-height: 14px;
+}
+.repo-status.error {
+  color: #b5564f;
+}
   </style>
 </head>
 <body>
@@ -317,6 +496,64 @@
     </button>
     <div id="status-text"></div>
   </div>
+
+  <!-- STATE: Repo Selection (shown after GitHub connects, before a repo is chosen) -->
+<div class="view" id="view-repo-select">
+  <div class="account-row">
+    <div class="account-avatar">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </div>
+    <span class="account-name" id="repo-select-account-name">souvik-mndal</span>
+    <div class="status-dot"></div>
+  </div>
+
+  <div>
+    <p class="repo-select-title">Choose a repository</p>
+    <p class="subtext">Your solved problems will be pushed here.</p>
+  </div>
+
+  <div class="repo-tabs">
+    <button class="repo-tab active" id="tab-new">+ New repo</button>
+    <button class="repo-tab" id="tab-existing">Existing repo</button>
+  </div>
+
+  <!-- NEW REPO MODE -->
+  <div id="new-repo-mode">
+    <label class="field-label">Repository name</label>
+    <input type="text" id="new-repo-name" class="text-input" value="leetcode-solutions" />
+
+    <label class="field-label" style="margin-top: 14px;">Visibility</label>
+    <div class="visibility-row">
+      <div class="visibility-option selected" id="vis-public" data-value="public">
+        <i class="ti ti-world"></i>
+        <div>
+          <div class="vis-title">Public</div>
+          <div class="vis-sub">Recommended</div>
+        </div>
+      </div>
+      <div class="visibility-option" id="vis-private" data-value="private">
+        <i class="ti ti-lock"></i>
+        <div class="vis-title">Private</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXISTING REPO MODE -->
+  <div id="existing-repo-mode" style="display: none;">
+    <div class="search-box">
+      <i class="ti ti-search"></i>
+      <input type="text" id="repo-search" placeholder="Search your repos..." />
+    </div>
+    <div class="repo-list" id="repo-list"></div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div id="repo-select-status" class="repo-status"></div>
+  <button id="repo-confirm-btn">Create & Connect</button>
+</div>
 
   <!-- STATE 2 & 3 share the account row, then branch -->
   <div class="view" id="view-connected">
