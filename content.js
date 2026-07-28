@@ -1292,7 +1292,7 @@ async function captureAcceptedDetails() {
     // Get language
     const lines = header.innerText.split("\n");
     language = lines[1] || "Unknown";
-
+    // console.log("🔍 Raw language value:", JSON.stringify(language));
     // Get code
     const codeBlock = header.querySelector("pre code");
 

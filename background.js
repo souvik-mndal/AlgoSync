@@ -51,13 +51,27 @@ async function generateExplanation(problemData) {
 
 function getFileExtension(language) {
   const map = {
-    python: "py", python3: "py", java: "java", cpp: "cpp", c: "c",
-    javascript: "js", typescript: "ts", csharp: "cs", go: "go",
-    kotlin: "kt", swift: "swift", rust: "rs", ruby: "rb",
-    scala: "scala", php: "php", dart: "dart", racket: "rkt",
-    erlang: "erl", elixir: "ex",
+    "c++": "cpp",
+    "java": "java",
+    "python3": "py",
+    "python": "py",
+    "javascript": "js",
+    "typescript": "ts",
+    "c#": "cs",
+    "c": "c",
+    "go": "go",
+    "kotlin": "kt",
+    "swift": "swift",
+    "rust": "rs",
+    "ruby": "rb",
+    "php": "php",
+    "dart": "dart",
+    "scala": "scala",
+    "elixir": "ex",
+    "erlang": "erl",
+    "racket": "rkt",
   };
-  return map[(language || "").toLowerCase()] || "txt";
+  return map[(language || "").toLowerCase().trim()] || "txt";
 }
 
 function padProblemNumber(num) {
@@ -86,7 +100,7 @@ function getBeatsColor(beatsPercent) {
 
 function buildBadge(label, value, color) {
   const text = encodeURIComponent(value).replace(/-/g, "--");
-  return `![${label}](https://img.shields.io/badge/${label}-${text}-${color})`;
+  return `![${label}](https://img.shields.io/badge/${label}-${text}-${color}?style=for-the-badge)`;
 }
 
 function buildStatsHeader(runtime, runtimeBeats, memory, memoryBeats) {
