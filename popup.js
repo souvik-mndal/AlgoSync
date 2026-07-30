@@ -1,6 +1,6 @@
 const CLIENT_ID = "Ov23lifLLTVFkjurvntP";
 const WORKER_URL = "https://cool-mode-3295.algosync-svk.workers.dev";
-const RING_CIRCUMFERENCE = 2 * Math.PI * 54;
+const RING_CIRCUMFERENCE = 2 * Math.PI * 62;
 const RING_GAP = 6;
 
 // Views
@@ -9,6 +9,8 @@ const viewConnected = document.getElementById("view-connected");
 const viewRepoSelect = document.getElementById("view-repo-select");
 const viewEmpty = document.getElementById("view-empty");
 const viewStats = document.getElementById("view-stats");
+const viewRepoMissing = document.getElementById("view-repo-missing");
+const reconnectRepoBtn = document.getElementById("reconnect-repo-btn");
 
 // Connect elements
 const connectBtn = document.getElementById("connect-btn");
@@ -30,6 +32,7 @@ const visPrivate = document.getElementById("vis-private");
 const repoSearchInput = document.getElementById("repo-search");
 const repoListEl = document.getElementById("repo-list");
 const repoConfirmBtn = document.getElementById("repo-confirm-btn");
+const repoConfirmBtnText = document.getElementById("repo-confirm-btn-text");
 const repoSelectStatus = document.getElementById("repo-select-status");
 
 let currentMode = "new"; // "new" or "existing"
@@ -46,13 +49,51 @@ function showTopView(view) {
 }
 
 function showSubView(view) {
-  [viewEmpty, viewStats].forEach((v) => v.classList.remove("active"));
+  [viewEmpty, viewStats, viewRepoMissing].forEach((v) => v.classList.remove("active"));
   view.classList.add("active");
 }
 
 /* =========================================================================
  * MAIN ENTRY
  * ========================================================================= */
+// async function init() {
+//   const result = await chrome.storage.local.get([
+//     "githubToken",
+//     "githubUsername",
+//     "repoName",
+//     "submissions",
+//   ]);
+
+//   if (!result.githubToken || !result.githubUsername) {
+//     showTopView(viewDisconnected);
+//     return;
+//   }
+
+//   if (!result.repoName) {
+//   repoSelectAccountName.textContent = result.githubUsername;
+//   repoSelectStatus.textContent = "";
+//   repoSelectStatus.className = "repo-status";
+//   repoConfirmBtn.disabled = false;
+//   showTopView(viewRepoSelect);
+//   loadExistingRepos(result.githubToken);
+//   return;
+// }
+
+//   accountName.textContent = `${result.githubUsername} · ${result.repoName}`;
+//   showTopView(viewConnected);
+
+//   const submissions = result.submissions || {};
+//   const entries = Object.values(submissions);
+
+//   if (entries.length === 0) {
+//     showSubView(viewEmpty);
+//     return;
+//   }
+
+//   renderStats(entries);
+//   showSubView(viewStats);
+// }
+
 async function init() {
   const result = await chrome.storage.local.get([
     "githubToken",
@@ -67,17 +108,25 @@ async function init() {
   }
 
   if (!result.repoName) {
-  repoSelectAccountName.textContent = result.githubUsername;
-  repoSelectStatus.textContent = "";
-  repoSelectStatus.className = "repo-status";
-  repoConfirmBtn.disabled = false;
-  showTopView(viewRepoSelect);
-  loadExistingRepos(result.githubToken);
-  return;
-}
+    repoSelectAccountName.textContent = result.githubUsername;
+    repoSelectStatus.textContent = "";
+    repoSelectStatus.className = "repo-status";
+    repoConfirmBtn.disabled = false;
+    showTopView(viewRepoSelect);
+    loadExistingRepos(result.githubToken);
+    return;
+  }
 
   accountName.textContent = `${result.githubUsername} · ${result.repoName}`;
   showTopView(viewConnected);
+
+  const repoExists = await verifyRepoExists(result.githubToken, result.githubUsername, result.repoName);
+
+  if (!repoExists) {
+  await chrome.storage.local.remove(["repoName", "submissions"]);
+  showSubView(viewRepoMissing);
+  return;
+}
 
   const submissions = result.submissions || {};
   const entries = Object.values(submissions);
@@ -91,6 +140,18 @@ async function init() {
   showSubView(viewStats);
 }
 
+async function verifyRepoExists(token, owner, repoName) {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.ok;
+  } catch (error) {
+    console.error("Repo verification failed:", error);
+    return true;
+  }
+}
+
 /* =========================================================================
  * STATS RENDERING (unchanged from before)
  * ========================================================================= */
@@ -100,7 +161,7 @@ function renderStats(entries) {
   totalEl.textContent = total;
 
   const digits = String(total).length;
-  const sizeMap = { 1: 34, 2: 34, 3: 27, 4: 21 };
+  const sizeMap = { 1: 40, 2: 40, 3: 32, 4: 24 };
   totalEl.style.fontSize = `${sizeMap[digits] || 19}px`;
 
   const easy = entries.filter((e) => e.difficulty === "Easy").length;
@@ -148,7 +209,7 @@ function renderStats(entries) {
 
     const timeSpan = document.createElement("span");
     timeSpan.className = "recent-time";
-    timeSpan.innerHTML = `<span>${timeAgo(entry.timestamp)}</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+    timeSpan.innerHTML = `<span>${timeAgo(entry.timestamp)}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
 
     row.appendChild(nameSpan);
     row.appendChild(timeSpan);
@@ -177,7 +238,7 @@ function switchToNewMode() {
   tabExisting.classList.remove("active");
   newRepoMode.style.display = "block";
   existingRepoMode.style.display = "none";
-  repoConfirmBtn.textContent = "Create & Connect";
+  repoConfirmBtnText.textContent = "Create & Connect";
   repoSelectStatus.textContent = "";
   repoConfirmBtn.classList.remove("muted");
 }
@@ -188,7 +249,7 @@ function switchToExistingMode() {
   tabNew.classList.remove("active");
   newRepoMode.style.display = "none";
   existingRepoMode.style.display = "block";
-  repoConfirmBtn.textContent = "Connect Repo";
+  repoConfirmBtnText.textContent = "Connect Repo";
   repoSelectStatus.textContent = "";
   updateConfirmButtonState();
 }
@@ -211,6 +272,7 @@ visPrivate.addEventListener("click", () => {
  * REPO SELECTION — FETCH EXISTING REPOS
  * ========================================================================= */
 async function loadExistingRepos(token) {
+  repoListEl.innerHTML = '<div class="repo-list-empty">Loading repos...</div>';
   try {
     const response = await fetch("https://api.github.com/user/repos?per_page=100&sort=updated", {
       headers: { Authorization: `Bearer ${token}` },
@@ -222,11 +284,23 @@ async function loadExistingRepos(token) {
     }
   } catch (error) {
     console.error("Failed to load repos:", error);
+    repoListEl.innerHTML = '<div class="repo-list-empty">Couldn\'t load repos. Try again.</div>';
   }
 }
 
 function renderRepoList(repos) {
   repoListEl.innerHTML = "";
+
+  if (repos.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "repo-list-empty";
+    empty.textContent = fetchedRepos.length === 0
+      ? "No repos exist"
+      : "No repo found";
+    repoListEl.appendChild(empty);
+    return;
+  }
+
   repos.forEach((repo) => {
     const item = document.createElement("div");
     item.className = "repo-list-item";
@@ -236,8 +310,12 @@ function renderRepoList(repos) {
     nameSpan.textContent = repo.name;
 
     const visSpan = document.createElement("span");
-    visSpan.className = "repo-visibility-tag";
-    visSpan.textContent = repo.private ? "Private" : "Public";
+const icon = repo.private
+  ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`
+  : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+visSpan.innerHTML = `${icon}<span>${repo.private ? "Private" : "Public"}</span>`;
+visSpan.className = repo.private ? "repo-visibility-tag private" : "repo-visibility-tag";
+
 
     item.appendChild(nameSpan);
     item.appendChild(visSpan);
@@ -291,6 +369,7 @@ repoConfirmBtn.addEventListener("click", async () => {
       return;
     }
     repoConfirmBtn.disabled = true;
+    repoConfirmBtnText.textContent = "Connecting...";
     repoSelectStatus.textContent = "Connecting repository...";
     repoSelectStatus.className = "repo-status";
 
@@ -302,6 +381,7 @@ repoConfirmBtn.addEventListener("click", async () => {
 
 async function createNewRepo(token, name, isPrivate) {
   repoConfirmBtn.disabled = true;
+  repoConfirmBtnText.textContent = "Creating...";
   repoSelectStatus.textContent = "Creating repository...";
   repoSelectStatus.className = "repo-status";
 
@@ -329,6 +409,7 @@ async function createNewRepo(token, name, isPrivate) {
       repoSelectStatus.textContent = message;
       repoSelectStatus.className = "repo-status error";
       repoConfirmBtn.disabled = false;
+      repoConfirmBtnText.textContent = "Create & Connect";
       return;
     }
 
@@ -339,14 +420,52 @@ async function createNewRepo(token, name, isPrivate) {
     repoSelectStatus.textContent = "Something went wrong. Try again.";
     repoSelectStatus.className = "repo-status error";
     repoConfirmBtn.disabled = false;
+    repoConfirmBtnText.textContent = "Create & Connect";
   }
 }
 
 /* =========================================================================
  * OAUTH FLOW
  * ========================================================================= */
+// function startGithubAuth() {
+//   connectBtn.disabled = true;
+//   btnText.textContent = "Connecting to GitHub";
+//   statusText.textContent = "Opening GitHub login...";
+//   statusText.className = "";
+
+//   const redirectUri = chrome.identity.getRedirectURL();
+//   const authUrl =
+//     `https://github.com/login/oauth/authorize` +
+//     `?client_id=${CLIENT_ID}` +
+//     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+//     `&scope=repo`;
+
+//   chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, async (redirectedTo) => {
+//     connectBtn.disabled = false;
+//     btnText.textContent = "Connect GitHub";
+//     if (chrome.runtime.lastError || !redirectedTo) {
+//       console.error("GitHub auth failed:", chrome.runtime.lastError);
+//       statusText.textContent = "Login failed. Try again.";
+//       statusText.className = "error";
+//       return;
+//     }
+
+//     const url = new URL(redirectedTo);
+//     const code = url.searchParams.get("code");
+
+//     if (!code) {
+//       statusText.textContent = "No code received. Try again.";
+//       statusText.className = "error";
+//       return;
+//     }
+
+//     statusText.textContent = "Verifying with GitHub...";
+//     await exchangeCodeForToken(code);
+//   });
+// }
 function startGithubAuth() {
   connectBtn.disabled = true;
+  btnText.textContent = "Connecting to GitHub";
   statusText.textContent = "Opening GitHub login...";
   statusText.className = "";
 
@@ -358,10 +477,10 @@ function startGithubAuth() {
     `&scope=repo`;
 
   chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, async (redirectedTo) => {
-    connectBtn.disabled = false;
-
     if (chrome.runtime.lastError || !redirectedTo) {
       console.error("GitHub auth failed:", chrome.runtime.lastError);
+      connectBtn.disabled = false;
+      btnText.textContent = "Connect GitHub";
       statusText.textContent = "Login failed. Try again.";
       statusText.className = "error";
       return;
@@ -371,16 +490,54 @@ function startGithubAuth() {
     const code = url.searchParams.get("code");
 
     if (!code) {
+      connectBtn.disabled = false;
+      btnText.textContent = "Connect GitHub";
       statusText.textContent = "No code received. Try again.";
       statusText.className = "error";
       return;
     }
 
     statusText.textContent = "Verifying with GitHub...";
+    btnText.textContent = "Verifying...";
     await exchangeCodeForToken(code);
   });
 }
 
+// async function exchangeCodeForToken(code) {
+//   try {
+//     const response = await fetch(`${WORKER_URL}/github-auth`, {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ code }),
+//     });
+
+//     const data = await response.json();
+
+//     if (!response.ok || data.error) {
+//       console.error("Token exchange failed:", data);
+//       statusText.textContent = "Couldn't connect. Try again.";
+//       statusText.className = "error";
+//       return;
+//     }
+
+//     const userResponse = await fetch("https://api.github.com/user", {
+//       headers: { Authorization: `Bearer ${data.access_token}` },
+//     });
+//     const userData = await userResponse.json();
+
+//     await chrome.storage.local.set({
+//       githubToken: data.access_token,
+//       githubUsername: userData.login || "GitHub user",
+//     });
+
+//     statusText.textContent = "";
+//     init();
+//   } catch (error) {
+//     console.error("Token exchange error:", error);
+//     statusText.textContent = "Something went wrong. Try again.";
+//     statusText.className = "error";
+//   }
+// }
 async function exchangeCodeForToken(code) {
   try {
     const response = await fetch(`${WORKER_URL}/github-auth`, {
@@ -393,6 +550,8 @@ async function exchangeCodeForToken(code) {
 
     if (!response.ok || data.error) {
       console.error("Token exchange failed:", data);
+      connectBtn.disabled = false;
+      btnText.textContent = "Connect GitHub";
       statusText.textContent = "Couldn't connect. Try again.";
       statusText.className = "error";
       return;
@@ -412,19 +571,60 @@ async function exchangeCodeForToken(code) {
     init();
   } catch (error) {
     console.error("Token exchange error:", error);
+    connectBtn.disabled = false;
+    btnText.textContent = "Connect GitHub";
     statusText.textContent = "Something went wrong. Try again.";
     statusText.className = "error";
   }
 }
-
 /* =========================================================================
  * DISCONNECT
  * ========================================================================= */
+// async function disconnectGithub() {
+//   await chrome.storage.local.remove(["githubToken", "githubUsername", "repoName"]);
+//   init();
+// }
+
+// async function disconnectGithub() {
+//   await chrome.storage.local.remove(["githubToken", "githubUsername", "repoName"]);
+//   connectBtn.disabled = false;
+//   btnText.textContent = "Connect GitHub";
+//   statusText.textContent = "";
+//   repoConfirmBtn.disabled = false;
+//   repoConfirmBtnText.textContent = currentMode === "existing" ? "Connect Repo" : "Create & Connect";
+//   repoSelectStatus.textContent = "";
+//   repoSelectStatus.className = "repo-status";
+//   init();
+// }
+
 async function disconnectGithub() {
   await chrome.storage.local.remove(["githubToken", "githubUsername", "repoName"]);
+  connectBtn.disabled = false;
+  btnText.textContent = "Connect GitHub";
+  statusText.textContent = "";
+  selectedExistingRepo = null;
+  fetchedRepos = [];
+  currentVisibility = "public";
+  visPublic.classList.add("selected");
+  visPrivate.classList.remove("selected");
+  repoConfirmBtn.disabled = false;
+  repoConfirmBtnText.textContent = "Create & Connect";
+  repoSelectStatus.textContent = "";
+  repoSelectStatus.className = "repo-status";
+  switchToNewMode();
+  repoSearchInput.value = "";
   init();
 }
 
 connectBtn.addEventListener("click", startGithubAuth);
 disconnectBtn.addEventListener("click", disconnectGithub);
+reconnectRepoBtn.addEventListener("click", async () => {
+  const { githubToken, githubUsername } = await chrome.storage.local.get(["githubToken", "githubUsername"]);
+repoSelectAccountName.textContent = githubUsername;
+  repoSelectStatus.textContent = "";
+  repoSelectStatus.className = "repo-status";
+  repoConfirmBtn.disabled = false;
+  showTopView(viewRepoSelect);
+  loadExistingRepos(githubToken);
+});
 init();

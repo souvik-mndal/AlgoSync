@@ -4,38 +4,93 @@
   <meta charset="UTF-8">
   <title>AlgoSync AI</title>
   <style>
+
+
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('fonts/Manrope-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+}
     html, body {
-      width: 320px;
+      width: 350px;
       margin: 0;
     }
 
     * {
       box-sizing: border-box;
+      font-family: 'Manrope';
+      margin: 0;
+      padding: 0;
     }
 
     html {
       border-radius: 14px;
       overflow: hidden;
+      padding: 10px;
+  background: #bdb9b5;   /* the color peeking through as the inset gap */
     }
-
+    /* adding the updates */
     body {
+      width: 100%;
+       position: relative;
       padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #131313;
-      color: #efece5;
+      
+      background:
+    radial-gradient(circle at 50% 62%, rgba(0,0,0,0.14) 0%, transparent 60%),
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,0.25) 0%, transparent 40%),
+    #d5d1cd;
+  color: #302e2e;
       display: flex;
       flex-direction: column;
       gap: 14px;
-      border-radius: 14px;
+      /* border-radius: 14px; */
       overflow: hidden;
-    }
+
+       border-radius: 12px;   /* slightly smaller than html's 14px so it nests cleanly */
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    0 20px 40px rgba(0, 0, 0, 0.25);
+}
+    
+    body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
 
     .brand {
-      font-size: 12px;
-      font-weight: 500;
-      color: #6e6a63;
-      letter-spacing: 0.3px;
-    }
+  font-size: 11px;
+  font-weight: 600;
+  color: #8c8a84;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  position: relative;
+}
 
     /* ---------- View containers ---------- */
     .view {
@@ -61,21 +116,28 @@
     }
 
     .headline {
-      /* font-family: Georgia, "Times New Roman", serif; */
-      font-size: 27px;
-      font-weight: 400;
-      color: #efece5;
-      margin: 0 0 10px 0;
-      line-height: 1.3;
-    }
+  font-size: 25px;
+  /* font-weight: 600; */
+  /* color: white; */
+  margin: 0 0 10px 0;
+  line-height: 1.28;
+  letter-spacing: -0.4px;
+  /* text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); */
+  color: #302e2e;
+  font-weight: 700;
+  text-shadow: none;
+}
 
-    .subtext {
-      font-size: 12.5px;
-      color: #83807a;
-      margin: 0;
-      line-height: 1.6;
-      max-width: 220px;
-    }
+
+.subtext {
+  font-size: 13px;
+  color: #6f6d68;
+  margin: 0;
+  line-height: 1.6;
+  max-width: 230px;
+  font-weight: 400;
+}
+
 
     /* ---------- Account row (states 2 & 3) ---------- */
     .account-row {
@@ -85,48 +147,83 @@
     }
 
     .account-avatar {
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      background: #1e1e1b;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      color: #efece5;
-    }
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #d9d6d2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #302e2e;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 3px 8px rgba(0,0,0,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+}
 
     .account-name {
       font-size: 13.5px;
       font-weight: 600;
-      color: #efece5;
+      color: #302e2e;
     }
 
     .status-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: #4a9b6e;
+      /* background: #4a9b6e; */
       flex-shrink: 0;
+      background: #79b689;
     }
 
     /* ---------- State 2: connected, no data ---------- */
-    #view-empty {
-      height: 300px;
-    }
+    #view-empty, #view-repo-missing {
+  height: 300px;
+}
 
-    #view-empty .copy {
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
+#view-empty .copy, #view-repo-missing .copy {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 
-    #view-empty .headline {
-      font-size: 20px;
-    }
+#view-empty .headline, #view-repo-missing .headline {
+  font-size: 27.5px;
+}
+
+#reconnect-repo-btn {
+  background: #d3cfcb;
+  color: #302e2e;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.7),
+    0 10px 22px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -1px 2px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+#reconnect-repo-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#reconnect-repo-btn:active {
+  transform: scale(0.98);
+}
+#reconnect-repo-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
 
     /* ---------- State 3: connected, has data ---------- */
+    #view-stats {
+      /* height: 324px; */
+      height: 324px;
+    }
     .ring-row {
       /* background-color: yellow; */
       display: flex;
@@ -135,11 +232,27 @@
     }
 
     .ring-wrap {
-      position: relative;
-      width: 126px;
-      height: 126px;
-      flex-shrink: 0;
-    }
+  position: relative;
+  width: 150px;
+  height: 150px;
+  flex-shrink: 0;
+}
+
+.ring-hollow-base {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #dcd8d3;
+  -webkit-mask: radial-gradient(circle, transparent 0, transparent 52px, #000 53px, #000 100%);
+  mask: radial-gradient(circle, transparent 0, transparent 52px, #000 53px, #000 100%);
+  box-shadow:
+    0 0 24px rgba(0,0,0,0.14),
+    inset 0 0 24px rgba(0,0,0,0.14);
+}
+.ring-progress-svg {
+  position: absolute;
+  inset: 0;
+}
 
     .ring-center {
       position: absolute;
@@ -151,57 +264,58 @@
     }
 
     #total-solved {
-      /* font-family: Georgia, "Times New Roman", serif; */
-      font-weight: 400;
-      color: #efece5;
-      line-height: 1;
-    }
+  font-weight: 500;
+  color: #302e2e;
+  line-height: 1;
+}
 
-    .ring-solved-label {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      margin-top: 2.5px;
-      color: #4a9b6e;
-      font-size: 12px;
-    }
+.ring-solved-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2.5px;
+  color: #6f6d68;
+  font-size: 12px;
+  font-weight: 500;
+}
 
     .diff-boxes {
       /* background-color: red; */
       display: flex;
       flex-direction: column;
       align-items: end;
-      gap: 4px;
+      gap: 5px;
       flex-grow: 1;
     }
 
     .diff-box {
-      border-radius: 6px;
-      /* background-color: green; */
-      padding: 10px 10px 10px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 95%;
-    }
-    .diff-box.easy { background: #191b18; border: 0.5px solid #262922; }
-    .diff-box.medium { background: #1b1a17; border: 0.5px solid #2b2823; }
-    .diff-box.hard { background: #1c1817; border: 0.5px solid #2c2320; }
+  border-radius: 10px;
+  padding: 0 16px;
+  height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: #d3cfcb;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.5),
+    0 2px 5px rgba(0,0,0,0.08);
+}
 
-    .diff-label {
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-    }
-    .diff-box.easy .diff-label { color: #5fae82; }
-    .diff-box.medium .diff-label { color: #d9a862; }
-    .diff-box.hard .diff-label { color: #d67470; }
+.diff-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.diff-box.easy .diff-label { color: #5a8763; }
+.diff-box.medium .diff-label { color: #a98449; }
+.diff-box.hard .diff-label { color: #a5564c; }
 
-    .diff-count {
-      font-size: 14px;
-      font-weight: 500;
-      color: #efece5;
-    }
+.diff-count {
+  font-size: 18px;
+  font-weight: 500;
+  color: #454340;
+}
 
     .recent-section {
       display: flex;
@@ -209,47 +323,69 @@
     }
 
     .recent-heading {
-      font-size: 10.5px;
-      color: #6e6a63;
-      letter-spacing: 0.3px;
-      margin-bottom: 8px;
-    }
+  font-size: 11px;
+  color: #6f6d68;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
 
     .recent-list {
-      display: flex;
-      flex-direction: column;
-    }
+  display: flex;
+  flex-direction: column;
+  background: #d9d6d2;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.4);
+  max-height: 154px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b5b1ab transparent;
+}
+.recent-list::-webkit-scrollbar {
+  width: 6px;
+}
+.recent-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.recent-list::-webkit-scrollbar-thumb {
+  background: #b5b1ab;
+  border-radius: 10px;
+}
 
     .recent-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 9px 0;
-      border-bottom: 0.5px solid #1e1e1b;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    .recent-row:last-child {
-      border-bottom: none;
-    }
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.recent-row:last-child {
+  border-bottom: none;
+}
+.recent-row:hover {
+  background: rgba(0,0,0,0.06);
+}
 
     .recent-name {
-      font-size: 13px;
-      color: #efece5;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-right: 10px;
-    }
+  font-size: 13.5px;
+  color: #302e2e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 10px;
+}
 
-    .recent-time {
-      font-size: 11px;
-      color: #6e6a63;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-    }
+.recent-time {
+  font-size: 11.5px;
+  color: #8f8c86;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 
     /* ---------- Buttons ---------- */
     button {
@@ -264,35 +400,65 @@
       justify-content: center;
       gap: 7px;
       border: none;
+       position: relative;
       transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     }
     button:disabled { opacity: 0.5; cursor: default; }
     button svg, button i { flex-shrink: 0; }
+#connect-btn {
+  background: #d3cfcb;
+  color: #302e2e;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  padding: 14px;
+  font-size: 14px;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.7),
+    0 10px 22px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -1px 2px rgba(0,0,0,0.05);
+  text-shadow: none;
+   transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+#connect-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#connect-btn:active {
+  transform: scale(0.98);
+}
+#connect-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
 
-    #connect-btn {
-      background: #efece5;
-      color: #131313;
-      padding: 13px;
-      font-size: 13.5px;
-    }
-    #connect-btn:hover {
-      opacity: 0.92;
-    }
-
-    #disconnect-btn {
-      background: transparent;
-      border: 0.5px solid #2a2a26;
-      color: #83807a;
-      margin-top: auto;
-    }
-    #disconnect-btn:hover {
-      background: #3a1614;
-      border-color: #5a2320;
-      color: #f0a5a0;
-    }
+#disconnect-btn {
+  background: #d3cfcb;
+  color: #302e2e;
+  border: none;
+  padding: 14px;
+  font-size: 14px;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.7),
+    0 10px 22px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -1px 2px rgba(0,0,0,0.05);
+  text-shadow: none;
+  margin-top: auto;
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+#disconnect-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#disconnect-btn:active {
+  transform: scale(0.98);
+}
 
     #status-text {
-      font-size: 11.5px;
+      font-size: 12px;
       color: #6e6a63;
       text-align: center;
       min-height: 16px;
@@ -307,9 +473,9 @@
 }
 
 .repo-select-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #efece5;
+  font-size: 20px;
+  font-weight: 700;
+  color: #302e2e;
   margin: 0 0 4px 0;
 }
 
@@ -320,41 +486,51 @@
 
 .repo-tab {
   flex: 1;
-  padding: 9px;
-  border-radius: 8px;
-  background: transparent;
-  border: 0.5px solid #2a2a26;
-  color: #83807a;
-  font-size: 12px;
+  padding: 12px 9px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.03);
+  border: 1px solid rgba(0,0,0,0.15);
+  color: #6f6d68;
+  font-size: 13px;
   font-weight: 500;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
 }
 .repo-tab.active {
-  background: #efece5;
+  background: #d9d6d2;
   border: none;
-  color: #131313;
+  color: #302e2e;
   font-weight: 600;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 6px 14px rgba(0,0,0,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.5);
 }
 
 .field-label {
-  font-size: 11px;
-  color: #6e6a63;
+  font-size: 12px;
+  color: #6f6d68;
   margin-bottom: 6px;
   display: block;
+  font-weight: 500;
 }
 
 .text-input {
   width: 100%;
-  background: #191917;
-  border: 0.5px solid #262622;
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: #efece5;
-  font-size: 13px;
+  background: #d3cfcb;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #302e2e;
+  font-size: 14px;
   font-family: inherit;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+.text-input::placeholder {
+  color: #9a9791;
 }
 .text-input:focus {
   outline: none;
-  border-color: #4a4a44;
+  border-color: rgba(48,46,46,0.3);
 }
 
 .visibility-row {
@@ -364,65 +540,70 @@
 
 .visibility-option {
   flex: 1;
-  padding: 10px;
-  border-radius: 8px;
-  background: #191917;
-  border: 0.5px solid #262622;
+  padding: 8px 9px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.03);
+  border: 1px solid rgba(0,0,0,0.15);
   display: flex;
+  /* flex-direction: column; */
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
   cursor: pointer;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
 }
 .visibility-option.selected {
-  background: #1e2419;
-  border: 1px solid #3a5a2e;
+  background: #d9d6d2;
+  border: none;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 6px 14px rgba(0,0,0,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.5);
 }
 .visibility-option svg {
-  color: #83807a;
+  color: #6f6d68;
   flex-shrink: 0;
 }
 .visibility-option.selected svg {
-  color: #7cc576;
+  color: #302e2e;
 }
 
 .vis-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: #c7c4bd;
-}
-.visibility-option.selected .vis-title {
-  color: #efece5;
+  color: #302e2e;
 }
 
 .vis-sub {
-  font-size: 9.5px;
-  color: #7cc576;
+  font-size: 10.5px;
+  color: #6f6d68;
 }
 
 .search-box {
-  background: #191917;
-  border: 0.5px solid #262622;
-  border-radius: 8px;
-  padding: 9px 11px;
+  background: #d3cfcb;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 999px;
+  padding: 11px 16px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   margin-bottom: 8px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
 }
 .search-box svg {
-  color: #5a5750;
+  color: #8f8c86;
   flex-shrink: 0;
 }
 .search-box input {
   background: transparent;
   border: none;
-  color: #efece5;
-  font-size: 12.5px;
+  color: #302e2e;
+  font-size: 13.5px;
   width: 100%;
   font-family: inherit;
 }
 .search-box input::placeholder {
-  color: #5a5750;
+  color: #9a9791;
 }
 .search-box input:focus {
   outline: none;
@@ -431,48 +612,78 @@
 .repo-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  max-height: 150px;
+  max-height: 154px;
   overflow-y: auto;
+  background: #d9d6d2;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.4);
 }
 
 .repo-list-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 8px;
-  border-radius: 6px;
+  padding: 13px 14px;
   cursor: pointer;
-  font-size: 13px;
-  color: #efece5;
+  font-size: 13.5px;
+  color: #302e2e;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.repo-list-item:last-child {
+  border-bottom: none;
 }
 .repo-list-item:hover {
-  background: #1c1c19;
+  background: rgba(0,0,0,0.03);
 }
 .repo-list-item.selected {
-  background: #1e2419;
+  background: rgba(0,0,0,0.09);
 }
 .repo-list-item .repo-visibility-tag {
-  font-size: 10px;
-  color: #5a5750;
+  font-size: 11px;
+  font-weight: 500;
+  color: #4a6b40;
+  background: #cdd9c3;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 #repo-confirm-btn {
-  background: #efece5;
-  color: #131313;
-  padding: 12px;
-  font-size: 13.5px;
+  background: #d3cfcb;
+  color: #302e2e;
+  padding: 14px;
+  font-size: 14px;
   font-weight: 600;
-  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.7),
+    0 10px 22px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -1px 2px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+#repo-confirm-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#repo-confirm-btn:active {
+  transform: scale(0.98);
 }
 #repo-confirm-btn.muted {
-  background: #262622;
-  color: #6e6a63;
+  background: #c4c0bb;
+  color: #9a9791;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+#repo-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
 }
 
 .repo-status {
-  font-size: 11.5px;
-  color: #6e6a63;
+  font-size: 12px;
+  color: #6f6d68;
   text-align: center;
   min-height: 14px;
 }
@@ -483,7 +694,7 @@
 
 .repo-list {
   scrollbar-width: thin;
-  scrollbar-color: #3a3a34 transparent;
+  scrollbar-color: #b5b1ab transparent;
 }
 .repo-list::-webkit-scrollbar {
   width: 6px;
@@ -492,12 +703,53 @@
   background: transparent;
 }
 .repo-list::-webkit-scrollbar-thumb {
-  background: #3a3a34;
+  background: #b5b1ab;
   border-radius: 10px;
 }
 .repo-list::-webkit-scrollbar-thumb:hover {
-  background: #4a4a44;
+  background: #9a968f;
 }
+.glass-icon-tile {
+  width: 70px;
+  height: 70px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+#view-disconnected .glass-icon-tile {
+  background: #d9d6d2;
+  border: none;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 8px 16px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.4);
+}
+.repo-list-item .repo-visibility-tag.private {
+  color: #6f6d68;
+  background: #c7c3bd;
+}
+
+.repo-list-empty {
+  padding: 24px 14px;
+  text-align: center;
+  font-size: 13px;
+  color: #8f8c86;
+}
+
+#view-repo-missing.active ~ #disconnect-btn {
+  display: none;
+}
+
+#ring-easy { filter: drop-shadow(0 0 2px rgba(122,180,130,0.4)); }
+#ring-medium { filter: drop-shadow(0 0 2px rgba(216,180,110,0.4)); }
+#ring-hard { filter: drop-shadow(0 0 2px rgba(199,120,110,0.4)); }
   </style>
 </head>
 <body>
@@ -506,11 +758,16 @@
   <!-- STATE 1: Not connected -->
   <div class="view" id="view-disconnected">
     <div class="copy">
+      <div class="glass-icon-tile">
+    <svg width="50" height="50" viewBox="0 0 16 16" fill="#302e2e">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+    </svg>
+  </div>
       <p class="headline">Connect your<br>GitHub account</p>
       <p class="subtext">Your solved problems, published as a living portfolio.</p>
     </div>
     <button id="connect-btn">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
       </svg>
       <span id="btn-text">Connect GitHub</span>
@@ -522,7 +779,7 @@
 <div class="view" id="view-repo-select">
   <div class="account-row">
     <div class="account-avatar">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
       </svg>
     </div>
@@ -537,7 +794,7 @@
 
   <div class="repo-tabs">
     <button class="repo-tab active" id="tab-new">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19"/>
         <line x1="5" y1="12" x2="19" y2="12"/>
       </svg>
@@ -554,7 +811,7 @@
     <label class="field-label" style="margin-top: 14px;">Visibility</label>
     <div class="visibility-row">
       <div class="visibility-option selected" id="vis-public" data-value="public">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/>
           <line x1="2" y1="12" x2="22" y2="12"/>
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
@@ -565,7 +822,7 @@
         </div>
       </div>
       <div class="visibility-option" id="vis-private" data-value="private">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <rect x="5" y="11" width="14" height="10" rx="2"/>
           <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
         </svg>
@@ -588,7 +845,12 @@
 
   <div style="flex-grow: 1;"></div>
 
-  <button id="repo-confirm-btn">Create & Connect</button>
+  <button id="repo-confirm-btn">
+  <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+  </svg>
+  <span id="repo-confirm-btn-text">Create & Connect</span>
+</button>
   <div id="repo-select-status" class="repo-status"></div>
 </div>
 
@@ -596,7 +858,7 @@
   <div class="view" id="view-connected">
     <div class="account-row">
       <div class="account-avatar">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
         </svg>
       </div>
@@ -612,26 +874,40 @@
       </div>
     </div>
 
+    <!-- STATE: connected, but stored repo no longer exists on GitHub -->
+    <div class="view" id="view-repo-missing">
+      <div class="copy">
+        <p class="headline">Oops, repository<br>not found</p>
+        <p class="subtext">This repository may have been deleted or renamed on GitHub.</p>
+      </div>
+      <button id="reconnect-repo-btn">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        <span>Reconnect repo</span>
+      </button>
+    </div>
+
     <!-- STATE 3: connected, has submissions -->
     <div class="view" id="view-stats">
       <div class="ring-row">
         <div class="ring-wrap">
-          <svg width="126" height="126" viewBox="0 0 126 126">
-            <circle cx="63" cy="63" r="54" fill="none" stroke="#1c1c19" stroke-width="7"/>
-            <circle id="ring-easy" cx="63" cy="63" r="54" fill="none" stroke="#4a9b6e" stroke-width="7" stroke-linecap="round" transform="rotate(-90 63 63)"/>
-            <circle id="ring-medium" cx="63" cy="63" r="54" fill="none" stroke="#c9955a" stroke-width="7" stroke-linecap="round" transform="rotate(-90 63 63)"/>
-            <circle id="ring-hard" cx="63" cy="63" r="54" fill="none" stroke="#b5564f" stroke-width="7" stroke-linecap="round" transform="rotate(-90 63 63)"/>
-          </svg>
-          <div class="ring-center">
-            <span id="total-solved">0</span>
-            <div class="ring-solved-label">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              <span>Solved</span>
-            </div>
-          </div>
-        </div>
+  <div class="ring-hollow-base"></div>
+  <svg width="150" height="150" viewBox="0 0 150 150" class="ring-progress-svg">
+  <circle id="ring-easy" cx="75" cy="75" r="62" fill="none" stroke="#7ab482" stroke-width="6" stroke-linecap="round" transform="rotate(-90 75 75)"/>
+  <circle id="ring-medium" cx="75" cy="75" r="62" fill="none" stroke="#d8b46e" stroke-width="6" stroke-linecap="round" transform="rotate(-90 75 75)"/>
+  <circle id="ring-hard" cx="75" cy="75" r="62" fill="none" stroke="#c7786e" stroke-width="6" stroke-linecap="round" transform="rotate(-90 75 75)"/>
+</svg>
+  <div class="ring-center">
+    <span id="total-solved">0</span>
+    <div class="ring-solved-label">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      <span>Solved</span>
+    </div>
+  </div>
+</div>
 
         <div class="diff-boxes">
           <div class="diff-box easy">
