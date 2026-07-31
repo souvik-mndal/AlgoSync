@@ -1,4 +1,5 @@
 (function () {
+  const FONT_BASE = chrome.runtime.getURL("fonts/");
   const STYLE_ID = "algosync-toast-style";
   const TOAST_ID = "algosync-toast";
 
@@ -6,50 +7,63 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
+
+    @font-face { font-family: "Manrope"; src: url("${FONT_BASE}Manrope-Regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+      @font-face { font-family: "Manrope"; src: url("${FONT_BASE}Manrope-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+      @font-face { font-family: "Manrope"; src: url("${FONT_BASE}Manrope-SemiBold.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+      @font-face { font-family: "Manrope"; src: url("${FONT_BASE}Manrope-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+
       #${TOAST_ID} {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 999999;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 20px;
-        border-radius: 14px;
-        font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-        font-size: 14px;
-        font-weight: 600;
-        letter-spacing: 0.1px;
-        color: #fff;
-        opacity: 0;
-        transform: translateX(40px) scale(0.95);
-        transition:
-          opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-          transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-          background 0.35s ease,
-          box-shadow 0.35s ease;
-        pointer-events: none;
-        max-width: 320px;
-      }
+   position: fixed;
+   top: 20px;
+   right: 20px;
+   z-index: 999999;
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   padding: 14px 20px;
+   border-radius: 14px;
+   font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+   font-size: 14px;
+   font-weight: 600;
+   letter-spacing: 0.1px;
+   border: 1px solid rgba(255, 255, 255, 0.5);
+   opacity: 0;
+   transform: translateX(40px) scale(0.95);
+   transition:
+     opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+     transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+     background 0.35s ease,
+     box-shadow 0.35s ease,
+     color 0.35s ease;
+   pointer-events: none;
+   max-width: 320px;
+ }
       #${TOAST_ID}.show {
         opacity: 1;
         transform: translateX(0) scale(1);
       }
-      #${TOAST_ID} .algosync-sub {
-        display: block;
-        font-size: 11.5px;
-        font-weight: 400;
-        opacity: 0.85;
-        margin-top: 2px;
-      }
+      #${TOAST_ID} .algosync-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;      /* <- controls head/sub gap directly, tune this */
+  line-height: 1.25;
+}
+#${TOAST_ID} .algosync-sub {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  opacity: 0.85;
+  line-height: 1.2;   /* tighter than default */
+}
 
       /* Spinner for in-progress states */
       .algosync-spinner {
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        border: 2.5px solid rgba(255,255,255,0.35);
-        border-top-color: #fff;
+         border: 2.5px solid rgba(0,0,0,0.12);
+         border-top-color: currentColor;
         flex-shrink: 0;
         animation: algosync-spin 0.7s linear infinite;
       }
@@ -64,13 +78,13 @@
         flex-shrink: 0;
       }
       .algosync-check circle {
-        stroke: #fff;
+        stroke: currentColor;
         stroke-width: 2;
         fill: none;
         opacity: 0.35;
       }
       .algosync-check path {
-        stroke: #fff;
+        stroke: currentColor;
         stroke-width: 2.5;
         stroke-linecap: round;
         stroke-linejoin: round;
@@ -90,11 +104,11 @@
         flex-shrink: 0;
       }
       .algosync-x line {
-        stroke: #fff;
+        stroke: currentColor;
         stroke-width: 2.5;
         stroke-linecap: round;
-        stroke-dasharray: 14;
-        stroke-dashoffset: 14;
+        stroke-dasharray: 18;
+        stroke-dashoffset: 18;
         animation: algosync-draw 0.3s ease 0.1s forwards;
       }
     `;
@@ -121,50 +135,57 @@
 
   const STATES = {
     submitting: {
-        bg: "linear-gradient(135deg, #0ea5e9, #0284c7)",
-        shadow: "0 8px 28px rgba(14, 165, 233, 0.45)",
+        bg: "radial-gradient(circle at 15% 15%, #8ec5e8 0%, transparent 55%), radial-gradient(circle at 80% 20%, #b9dcee 0%, transparent 50%), radial-gradient(circle at 50% 60%, #e3f0f8 0%, transparent 60%), radial-gradient(circle at 90% 85%, #78b9de 0%, transparent 55%), #cbe1f0",
+       color: "#1c4e6b",
+       shadow: "0 1px 1px rgba(255,255,255,0.8), 0 12px 26px rgba(32,69,92,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
         text: "Submitting",
         sub: null,
         icon: "spinner",
     },
     accepted: {
-      bg: "linear-gradient(135deg, #22c55e, #16a34a)",
-      shadow: "0 8px 28px rgba(34, 197, 94, 0.45)",
+      bg: "radial-gradient(circle at 15% 15%, #aed787 0%, transparent 55%), radial-gradient(circle at 80% 20%, #d9ecb0 0%, transparent 50%), radial-gradient(circle at 50% 60%, #edf5d9 0%, transparent 60%), radial-gradient(circle at 90% 85%, #a1cf7d 0%, transparent 55%), #d4e6b9",
+     color: "#3a5a2f",
+     shadow: "0 1px 1px rgba(255,255,255,0.8), 0 12px 26px rgba(61,85,48,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
       text: "Accepted",
       sub: null,
       icon: "check",
     },
     generating: {
-        bg: "linear-gradient(135deg, #f59e0b, #ea580c)",
-        shadow: "0 8px 28px rgba(245, 158, 11, 0.45)",
+        bg: "radial-gradient(circle at 15% 15%, #8ec5e8 0%, transparent 55%), radial-gradient(circle at 80% 20%, #b9dcee 0%, transparent 50%), radial-gradient(circle at 50% 60%, #e3f0f8 0%, transparent 60%), radial-gradient(circle at 90% 85%, #78b9de 0%, transparent 55%), #cbe1f0",
+       color: "#1c4e6b",
+       shadow: "0 1px 1px rgba(255,255,255,0.8), 0 12px 26px rgba(32,69,92,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
         text: "Writing notes",
         sub: "Stay on this page for a moment",
         icon: "spinner",
     },
     ready: {
-      bg: "linear-gradient(135deg, #22c55e, #16a34a)",
-      shadow: "0 8px 28px rgba(34, 197, 94, 0.45)",
+      bg: "radial-gradient(circle at 15% 15%, #aed787 0%, transparent 55%), radial-gradient(circle at 80% 20%, #d9ecb0 0%, transparent 50%), radial-gradient(circle at 50% 60%, #edf5d9 0%, transparent 60%), radial-gradient(circle at 90% 85%, #a1cf7d 0%, transparent 55%), #d4e6b9",
+      color: "#3a5a2f",
+     shadow: "0 1px 1px rgba(255,255,255,0.8), 0 12px 26px rgba(61,85,48,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
       text: "Notes ready",
       sub: null,
       icon: "check",
     },
     pushed: {
-      bg: "linear-gradient(135deg, #6366f1, #4f46e5)",
-      shadow: "0 8px 28px rgba(99, 102, 241, 0.45)",
+       bg: "radial-gradient(circle at 15% 15%, #aed787 0%, transparent 55%), radial-gradient(circle at 80% 20%, #d9ecb0 0%, transparent 50%), radial-gradient(circle at 50% 60%, #edf5d9 0%, transparent 60%), radial-gradient(circle at 90% 85%, #a1cf7d 0%, transparent 55%), #d4e6b9",
+      color: "#3a5a2f",
+     shadow: "0 1px 1px rgba(255,255,255,0.8), 0 12px 26px rgba(61,85,48,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
       text: "Pushed to GitHub",
       sub: null,
       icon: "check",
     },
     failed: {
-      bg: "linear-gradient(135deg, #ef4444, #dc2626)",
-      shadow: "0 8px 28px rgba(239, 68, 68, 0.45)",
+      bg: "radial-gradient(circle at 15% 15%, #e6907f 0%, transparent 55%), radial-gradient(circle at 80% 20%, #eeb6a7 0%, transparent 50%), radial-gradient(circle at 50% 60%, #f7ddd6 0%, transparent 60%), radial-gradient(circle at 90% 85%, #dd7c62 0%, transparent 55%), #ecc7b7",
+      color: "#8c3a30",
+     shadow: "0 1px 1px rgba(255,255,255,0.8), 0 12px 26px rgba(122,53,39,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
       text: "Something went wrong",
       sub: "Explanation wasn't saved",
       icon: "x",
     },
     notAccepted: {
-      bg: "linear-gradient(135deg, #ef4444, #dc2626)",
-      shadow: "0 8px 28px rgba(239, 68, 68, 0.45)",
+      bg: "radial-gradient(circle at 15% 15%, #e6907f 0%, transparent 55%), radial-gradient(circle at 80% 20%, #eeb6a7 0%, transparent 50%), radial-gradient(circle at 50% 60%, #f7ddd6 0%, transparent 60%), radial-gradient(circle at 90% 85%, #dd7c62 0%, transparent 55%), #ecc7b7",
+      color: "#8c3a30",
+     shadow: "0 1px 1px rgba(255,255,255,0.8), 0 12px 26px rgba(122,53,39,0.18), inset 0 1px 0 rgba(255,255,255,0.6)",
       text: "Not accepted",
       sub: null,
       icon: "dash",
@@ -188,6 +209,7 @@
 
     el.style.background = state.bg;
     el.style.boxShadow = state.shadow;
+    el.style.color = state.color;
 
     const subText = customSub !== undefined ? customSub : state.sub;
     el.innerHTML = `
