@@ -568,7 +568,7 @@ async function saveSubmission(finalData) {
     }
     
     if (!finalData.code) {
-      await chrome.storage.local.set({ latestSubmission: finalData });
+      // await chrome.storage.local.set({ latestSubmission: finalData });
       console.log("⚠️ No code captured — likely a real failed submission OR a scraping issue");
       algosyncToast("failed", "Couldn't read your code", "Try resubmitting");
       return;
