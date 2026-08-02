@@ -558,6 +558,84 @@ function getEmbeddedQuestionData() {
   return null;
 }
 
+// async function saveSubmission(finalData) {
+//   try {
+//     const { repoName } = await chrome.storage.local.get("repoName");
+//     if (!repoName) {
+//       console.log("⚠️ No repo connected — skipping AI call");
+//       algosyncToast("failed", "Please connect a repo", "Click the extension icon");
+//       return;
+//     }
+    
+//     if (!finalData.code) {
+//       // await chrome.storage.local.set({ latestSubmission: finalData });
+//       console.log("⚠️ No code captured — likely a real failed submission OR a scraping issue");
+//       algosyncToast("failed", "Couldn't read your code", "Try resubmitting");
+//       return;
+//     }
+
+//     const problemNumber = finalData.problemNumber;
+//     const decision = await shouldCallAI(problemNumber, finalData.code, finalData.language);
+
+//     console.log(`🔍 Decision: ${decision.call ? "Call AI" : "Skip AI"} — ${decision.reason}`);
+
+//     const result = await chrome.storage.local.get("submissions");
+//     const submissions = result.submissions || {};
+
+//     if (!decision.call) {
+//       submissions[problemNumber] = {
+//         ...submissions[problemNumber],
+//         ...finalData,
+//         explanation: submissions[problemNumber].explanation,
+//       };
+//       await chrome.storage.local.set({ submissions });
+//       console.log("⏭️ Skipped AI call — code unchanged");
+//       algosyncToast("ready", "Already documented");
+//       return;
+//     }
+
+//     console.log("🤖 Requesting AI explanation before saving...");
+//     algosyncToast("generating");
+
+//     chrome.runtime.sendMessage(
+//     { type: "GENERATE_EXPLANATION", data: finalData },
+//     async (response) => {
+//       if (response && response.success) {
+//         console.log("✅ AI Explanation:", response.explanation);
+//         algosyncToast("ready");
+
+//         const updated = await chrome.storage.local.get("submissions");
+//         const subs = updated.submissions || {};
+//         const fullData = { ...finalData, explanation: response.explanation };
+//         subs[problemNumber] = fullData;
+//         await chrome.storage.local.set({ submissions: subs });
+
+//         const pushData = { ...fullData, _isUpdate: decision.reason === "code changed" };
+//         chrome.runtime.sendMessage(
+//           { type: "PUSH_TO_GITHUB", data: pushData },
+//           (pushResponse) => {
+//             if (pushResponse && pushResponse.success) {
+//               console.log("✅ Pushed to GitHub");
+//               algosyncToast("pushed");
+//             } else {
+//               console.error("❌ GitHub push failed:", pushResponse?.error);
+//               algosyncToast("failed", "Notes saved, but GitHub push failed", pushResponse?.error);
+//             }
+//           }
+//         );
+//       } else {
+//           console.error("❌ AI explanation failed:", response?.error);
+//           const errMsg = response?.error || "Explanation wasn't saved";
+//           algosyncToast("failed", "Couldn't generate notes", errMsg);
+//         }
+//       }
+//     );
+
+//   } catch (error) {
+//     console.error("❌ Storage save failed:", error.message);
+//   }
+// }
+
 async function saveSubmission(finalData) {
   try {
     const { repoName } = await chrome.storage.local.get("repoName");
@@ -568,7 +646,6 @@ async function saveSubmission(finalData) {
     }
     
     if (!finalData.code) {
-      // await chrome.storage.local.set({ latestSubmission: finalData });
       console.log("⚠️ No code captured — likely a real failed submission OR a scraping issue");
       algosyncToast("failed", "Couldn't read your code", "Try resubmitting");
       return;
@@ -583,14 +660,21 @@ async function saveSubmission(finalData) {
     const submissions = result.submissions || {};
 
     if (!decision.call) {
-      submissions[problemNumber] = {
-        ...submissions[problemNumber],
-        ...finalData,
-        explanation: submissions[problemNumber].explanation,
-      };
+      const existing = submissions[problemNumber] || {};
+      const mergedData = { ...existing, ...finalData, explanation: existing.explanation };
+      submissions[problemNumber] = mergedData;
       await chrome.storage.local.set({ submissions });
       console.log("⏭️ Skipped AI call — code unchanged");
-      algosyncToast("ready", "Already documented");
+
+      if (decision.retryPush) {
+        // Explanation already exists, but the last GitHub push didn't fully
+        // succeed — retry just the push, skip the AI call entirely.
+        console.log("🔁 Retrying incomplete push (no AI call needed)...");
+        algosyncToast("generating", "Finishing GitHub push", "Retrying previous push");
+        pushToGithubAndRecordStatus(problemNumber, mergedData, true);
+      } else {
+        algosyncToast("ready", "Already documented");
+      }
       return;
     }
 
@@ -606,23 +690,11 @@ async function saveSubmission(finalData) {
 
         const updated = await chrome.storage.local.get("submissions");
         const subs = updated.submissions || {};
-        const fullData = { ...finalData, explanation: response.explanation };
+        const fullData = { ...finalData, explanation: response.explanation, pushStatus: "pending" };
         subs[problemNumber] = fullData;
         await chrome.storage.local.set({ submissions: subs });
 
-        const pushData = { ...fullData, _isUpdate: decision.reason === "code changed" };
-        chrome.runtime.sendMessage(
-          { type: "PUSH_TO_GITHUB", data: pushData },
-          (pushResponse) => {
-            if (pushResponse && pushResponse.success) {
-              console.log("✅ Pushed to GitHub");
-              algosyncToast("pushed");
-            } else {
-              console.error("❌ GitHub push failed:", pushResponse?.error);
-              algosyncToast("failed", "Notes saved, but GitHub push failed", pushResponse?.error);
-            }
-          }
-        );
+        pushToGithubAndRecordStatus(problemNumber, fullData, decision.reason === "code changed");
       } else {
           console.error("❌ AI explanation failed:", response?.error);
           const errMsg = response?.error || "Explanation wasn't saved";
@@ -633,6 +705,90 @@ async function saveSubmission(finalData) {
 
   } catch (error) {
     console.error("❌ Storage save failed:", error.message);
+  }
+}
+
+// Pushes to GitHub, then writes the resulting pushStatus back onto the
+// stored submission so future shouldCallAI checks know whether a retry
+// is needed — this is what closes the "partial push gets stuck forever" bug.
+// async function pushToGithubAndRecordStatus(problemNumber, fullData, isUpdate) {
+//   const pushData = { ...fullData, _isUpdate: isUpdate };
+
+//   chrome.runtime.sendMessage(
+//     { type: "PUSH_TO_GITHUB", data: pushData },
+//     async (pushResponse) => {
+//       const status = pushResponse?.pushStatus || "failed";
+
+//       const latest = await chrome.storage.local.get("submissions");
+//       const subs = latest.submissions || {};
+//       if (subs[problemNumber]) {
+//         subs[problemNumber].pushStatus = status;
+//         await chrome.storage.local.set({ submissions: subs });
+//       }
+
+//       if (pushResponse && pushResponse.success) {
+//         console.log("✅ Pushed to GitHub");
+//         algosyncToast("pushed");
+//       } else if (pushResponse?.partial) {
+//         console.error("⚠️ Partial GitHub push:", pushResponse.failedFiles);
+//         algosyncToast("failed", "Push partially failed", `Missing: ${pushResponse.failedFiles.join(", ")} — will retry next submit`);
+//       } else {
+//         console.error("❌ GitHub push failed:", pushResponse?.error);
+//         algosyncToast("failed", "Notes saved, but GitHub push failed", pushResponse?.error);
+//       }
+//     }
+//   );
+// }
+
+
+async function pushToGithubAndRecordStatus(problemNumber, fullData, isUpdate) {
+  const pushData = { ...fullData, _isUpdate: isUpdate };
+
+  // The service worker can go idle/die mid-request (MV3 behavior), in which
+  // case sendMessage's callback never fires — no error, no timeout, nothing.
+  // This wraps it in a race so a dead worker can't leave pushStatus stuck
+  // on "pending" forever.
+  const responsePromise = new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { type: "PUSH_TO_GITHUB", data: pushData },
+      (pushResponse) => {
+        if (chrome.runtime.lastError) {
+          console.error("⚠️ sendMessage error:", chrome.runtime.lastError.message);
+          resolve(null);
+          return;
+        }
+        resolve(pushResponse);
+      }
+    );
+  });
+
+  const timeoutPromise = new Promise((resolve) => {
+    setTimeout(() => resolve(null), 20000); // 20s — generous but bounded
+  });
+
+  const pushResponse = await Promise.race([responsePromise, timeoutPromise]);
+
+  const status = pushResponse?.pushStatus || "failed";
+
+  const latest = await chrome.storage.local.get("submissions");
+  const subs = latest.submissions || {};
+  if (subs[problemNumber]) {
+    subs[problemNumber].pushStatus = status;
+    await chrome.storage.local.set({ submissions: subs });
+  }
+
+  if (pushResponse && pushResponse.success) {
+    console.log("✅ Pushed to GitHub");
+    algosyncToast("pushed");
+  } else if (pushResponse?.partial) {
+    console.error("⚠️ Partial GitHub push:", pushResponse.failedFiles);
+    algosyncToast("failed", "Push partially failed", `Missing: ${pushResponse.failedFiles.join(", ")} — will retry next submit`);
+  } else if (pushResponse === null) {
+    console.error("❌ No response from background — service worker may have gone idle");
+    algosyncToast("failed", "Push status unknown", "Will retry next submit");
+  } else {
+    console.error("❌ GitHub push failed:", pushResponse?.error);
+    algosyncToast("failed", "Notes saved, but GitHub push failed", pushResponse?.error);
   }
 }
 
@@ -667,6 +823,26 @@ function normalizeCode(code, language) {
 }
 
 
+// async function shouldCallAI(problemNumber, newCode, language) {
+//   const result = await chrome.storage.local.get("submissions");
+//   const submissions = result.submissions || {};
+//   const existing = submissions[problemNumber];
+
+//   if (!existing) {
+//     return { call: true, reason: "new problem" };
+//   }
+//   if (!existing.explanation) {
+//     return { call: true, reason: "no explanation yet — retrying" };
+//   }
+//   const normalizedNew = normalizeCode(newCode, language);
+//   const normalizedOld = normalizeCode(existing.code, existing.language);
+
+//   if (normalizedNew === normalizedOld) {
+//     return { call: false, reason: "unchanged code" };
+//   }
+
+//   return { call: true, reason: "code changed" };
+// }
 async function shouldCallAI(problemNumber, newCode, language) {
   const result = await chrome.storage.local.get("submissions");
   const submissions = result.submissions || {};
@@ -682,12 +858,16 @@ async function shouldCallAI(problemNumber, newCode, language) {
   const normalizedOld = normalizeCode(existing.code, existing.language);
 
   if (normalizedNew === normalizedOld) {
-    return { call: false, reason: "unchanged code" };
+    // Code unchanged — but if the last push didn't fully succeed,
+    // we still need to retry the push (just not the AI call).
+    if (existing.pushStatus !== "complete") {
+      return { call: false, reason: "unchanged code", retryPush: true };
+    }
+    return { call: false, reason: "unchanged code", retryPush: false };
   }
 
   return { call: true, reason: "code changed" };
 }
-
 
 /* =========================================================================
  * DESCRIPTION-TAB PARSER
@@ -1035,6 +1215,49 @@ function checkOutcomeNow() {
 
   return null;
 }
+
+
+
+// let partialFailStableCount = 0;
+// let lastPartialFailKey = null;
+
+// function checkOutcomeNow() {
+//   const acceptedMarker = findAcceptedMarker();
+//   if (acceptedMarker) {
+//     return { status: "accepted", marker: acceptedMarker };
+//   }
+
+//   const summary = findTestCaseSummary();
+//   if (summary) {
+//     if (summary.total === 0 && summary.passed === 0) {
+//       return { status: "failed", summary };
+//     }
+//     if (summary.passed === summary.total && summary.total > 0) {
+//       return { status: "accepted", marker: null };
+//     }
+//     if (summary.passed < summary.total) {
+//       // Numbers might still be updating live — require the same partial
+//       // result to appear twice in a row before treating it as final,
+//       // so we don't call it "failed" mid-render.
+//       const key = summary.text;
+//       if (key === lastPartialFailKey) {
+//         partialFailStableCount++;
+//       } else {
+//         partialFailStableCount = 1;
+//         lastPartialFailKey = key;
+//       }
+//       if (partialFailStableCount >= 2) {
+//         return { status: "failed", summary };
+//       }
+//       return null;
+//     }
+//   }
+
+//   return null;
+// }
+
+
+
 // let lastSummaryKey = null;
 // let stableSummaryCount = 0;
 
@@ -1076,6 +1299,10 @@ function checkOutcomeNow() {
 
 function waitForSubmissionOutcome(safetyNetMs = 13000) {
   const immediate = checkOutcomeNow();
+// function waitForSubmissionOutcome(safetyNetMs = 15000) {
+//   partialFailStableCount = 0;
+//   lastPartialFailKey = null;
+  // const immediate = checkOutcomeNow();
   if (immediate) {
     handleOutcome(immediate);
     return;
@@ -1279,6 +1506,35 @@ async function captureAcceptedDetails() {
   // }
 
 
+  // let code = "";
+  // let language = "Unknown";
+
+  // // Find the POTD "Code" section
+  // const header = [...document.querySelectorAll("div")].find(el => {
+  //   const text = el.innerText?.trim();
+  //   return text && text.startsWith("Code\n");
+  // });
+
+  // if (header) {
+  //   // Get language
+  //   const lines = header.innerText.split("\n");
+  //   language = lines[1] || "Unknown";
+  //   // console.log("🔍 Raw language value:", JSON.stringify(language));
+  //   // Get code
+  //   const codeBlock = header.querySelector("pre code");
+
+  //   if (codeBlock) {
+  //     const cloned = codeBlock.cloneNode(true);
+
+  //     // Remove line numbers
+  //     cloned.querySelectorAll(".linenumber").forEach(el => el.remove());
+
+  //     code = cloned.textContent.trim();
+  //   }
+  // }
+
+
+
   let code = "";
   let language = "Unknown";
 
@@ -1289,19 +1545,22 @@ async function captureAcceptedDetails() {
   });
 
   if (header) {
-    // Get language
+    // Get language — primary method reads the header text layout
     const lines = header.innerText.split("\n");
     language = lines[1] || "Unknown";
-    // console.log("🔍 Raw language value:", JSON.stringify(language));
-    // Get code
+
     const codeBlock = header.querySelector("pre code");
 
     if (codeBlock) {
+      // Fallback: if the text-layout method gave us nothing usable,
+      // try reading it off the code block's language-* class instead.
+      if (language === "Unknown" || !language.trim()) {
+        const langClass = [...codeBlock.classList].find((c) => c.startsWith("language-"));
+        if (langClass) language = langClass.replace("language-", "");
+      }
+
       const cloned = codeBlock.cloneNode(true);
-
-      // Remove line numbers
       cloned.querySelectorAll(".linenumber").forEach(el => el.remove());
-
       code = cloned.textContent.trim();
     }
   }

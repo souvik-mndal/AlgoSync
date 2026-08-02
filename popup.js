@@ -120,13 +120,28 @@ async function init() {
   accountName.textContent = `${result.githubUsername} · ${result.repoName}`;
   showTopView(viewConnected);
 
-  const repoExists = await verifyRepoExists(result.githubToken, result.githubUsername, result.repoName);
+//   const repoExists = await verifyRepoExists(result.githubToken, result.githubUsername, result.repoName);
 
-  if (!repoExists) {
-  await chrome.storage.local.remove(["repoName", "submissions"]);
-  showSubView(viewRepoMissing);
-  return;
-}
+//   if (!repoExists) {
+//   await chrome.storage.local.remove(["repoName", "submissions"]);
+//   showSubView(viewRepoMissing);
+//   return;
+// }
+
+
+const repoCheck = await verifyRepoExists(result.githubToken, result.githubUsername, result.repoName);
+
+  if (repoCheck === "missing") {
+    // Confirmed via GitHub API that the repo genuinely doesn't exist (e.g. 404).
+    // Only wipe the repo link here — submissions are your solve history and
+    // should survive even if the repo itself was deleted/renamed.
+    await chrome.storage.local.remove(["repoName"]);
+    showSubView(viewRepoMissing);
+    return;
+  }
+  // repoCheck === "exists" or "unknown" (network error) — proceed normally.
+  // An "unknown" result means we couldn't verify, not that the repo is gone,
+  // so we don't punish the user for a flaky connection.
 
   const submissions = result.submissions || {};
   const entries = Object.values(submissions);
@@ -140,15 +155,32 @@ async function init() {
   showSubView(viewStats);
 }
 
+// async function verifyRepoExists(token, owner, repoName) {
+//   try {
+//     const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
+//       headers: { Authorization: `Bearer ${token}` },
+//     });
+//     return response.ok;
+//   } catch (error) {
+//     console.error("Repo verification failed:", error);
+//     return true;
+//   }
+// }
+
+
 async function verifyRepoExists(token, owner, repoName) {
   try {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return response.ok;
+    if (response.status === 404) return "missing";
+    if (response.ok) return "exists";
+    // Any other status (rate limit, 5xx, auth hiccup) — treat as unknown,
+    // not a confirmed deletion.
+    return "unknown";
   } catch (error) {
     console.error("Repo verification failed:", error);
-    return true;
+    return "unknown";
   }
 }
 

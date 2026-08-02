@@ -3,6 +3,11 @@ console.log("AlgoSync AI: Background service worker running");
 const WORKER_URL = "https://cool-mode-3295.algosync-svk.workers.dev";
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "KEEPALIVE_PING") {
+    sendResponse({ alive: true });
+    return true;
+  }
+
   if (message.type === "GENERATE_EXPLANATION") {
     generateExplanation(message.data)
       .then((explanation) => sendResponse({ success: true, explanation }))
@@ -10,10 +15,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // if (message.type === "PUSH_TO_GITHUB") {
+  //   pushToGithub(message.data)
+  //     .then(() => sendResponse({ success: true }))
+  //     .catch((error) => sendResponse({ success: false, error: error.message }));
+  //   return true;
+  // }
   if (message.type === "PUSH_TO_GITHUB") {
     pushToGithub(message.data)
-      .then(() => sendResponse({ success: true }))
-      .catch((error) => sendResponse({ success: false, error: error.message }));
+      .then(() => sendResponse({ success: true, pushStatus: "complete" }))
+      .catch((error) => {
+        if (error.partial) {
+          sendResponse({
+            success: false,
+            partial: true,
+            failedFiles: error.failedFiles,
+            error: error.message,
+            pushStatus: "partial",
+          });
+        } else {
+          sendResponse({ success: false, error: error.message, pushStatus: "failed" });
+        }
+      });
     return true;
   }
 });
@@ -152,18 +175,40 @@ function buildApproachMd(data) {
 
 
 
+// async function getFileSha(token, owner, repo, path) {
+//   try {
+//     const response = await fetch(
+//       `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+//       { headers: { Authorization: `Bearer ${token}` } }
+//     );
+//     if (response.status === 404) return null; // doesn't exist yet
+//     const data = await response.json();
+//     return data.sha || null;
+//   } catch (error) {
+//     console.error("Failed to check file existence:", error);
+//     return null;
+//   }
+// }
+
+
 async function getFileSha(token, owner, repo, path) {
   try {
     const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    if (response.status === 404) return null; // doesn't exist yet
+    if (response.status === 404) return { sha: null, confirmed: true }; // genuinely doesn't exist yet
+    if (!response.ok) {
+      // Rate limit, 5xx, auth hiccup — we couldn't actually check.
+      throw new Error(`Unexpected status ${response.status} while checking ${path}`);
+    }
     const data = await response.json();
-    return data.sha || null;
+    return { sha: data.sha || null, confirmed: true };
   } catch (error) {
-    console.error("Failed to check file existence:", error);
-    return null;
+    console.error(`Couldn't verify existing sha for ${path}:`, error.message);
+    // Network failure or unexpected status — we genuinely don't know.
+    // Don't guess; let the caller decide how to handle uncertainty.
+    return { sha: null, confirmed: false };
   }
 }
 
@@ -171,8 +216,26 @@ function toBase64Unicode(str) {
   return btoa(unescape(encodeURIComponent(str)));
 }
 
+// async function putFile(token, owner, repo, path, content, commitMessage) {
+//   const sha = await getFileSha(token, owner, repo, path);
+
+//   const body = {
+//     message: commitMessage,
+//     content: toBase64Unicode(content),
+//   };
+//   if (sha) body.sha = sha;
+
 async function putFile(token, owner, repo, path, content, commitMessage) {
-  const sha = await getFileSha(token, owner, repo, path);
+  const { sha, confirmed } = await getFileSha(token, owner, repo, path);
+
+  if (!confirmed) {
+    // We couldn't determine whether this file already exists — pushing
+    // blind here risks either a rejected PUT (safe but confusing) or,
+    // worse, silently overwriting something we shouldn't have. Fail
+    // loud and let the existing partial-push retry logic handle it
+    // on the next submit, instead of guessing.
+    throw new Error(`Couldn't verify file state for ${path} — skipping to avoid an unsafe write`);
+  }
 
   const body = {
     message: commitMessage,
@@ -203,6 +266,47 @@ async function putFile(token, owner, repo, path, content, commitMessage) {
 
 
 
+// async function pushToGithub(submissionData) {
+//   const { githubToken, githubUsername, repoName } = await chrome.storage.local.get([
+//     "githubToken",
+//     "githubUsername",
+//     "repoName",
+//   ]);
+
+//   if (!githubToken || !githubUsername || !repoName) {
+//     throw new Error("GitHub not fully connected");
+//   }
+
+//   const folderName = `${padProblemNumber(submissionData.problemNumber)}-${slugifyForFolder(submissionData.problemName)}`;
+//   const ext = getFileExtension(submissionData.language);
+//   const isUpdate = submissionData._isUpdate; // passed in from caller
+
+//   const commitVerb = isUpdate ? "Update" : "Add";
+//   const commitMsg = `${commitVerb} solution: ${submissionData.problemName}`;
+
+//   await putFile(
+//     githubToken, githubUsername, repoName,
+//     `${folderName}/problem.md`,
+//     buildProblemMd(submissionData),
+//     commitMsg
+//   );
+
+//   await putFile(
+//     githubToken, githubUsername, repoName,
+//     `${folderName}/approach.md`,
+//     buildApproachMd(submissionData),
+//     commitMsg
+//   );
+
+//   await putFile(
+//     githubToken, githubUsername, repoName,
+//     `${folderName}/solution.${ext}`,
+//     submissionData.code,
+//     commitMsg
+//   );
+// }
+
+
 async function pushToGithub(submissionData) {
   const { githubToken, githubUsername, repoName } = await chrome.storage.local.get([
     "githubToken",
@@ -221,24 +325,28 @@ async function pushToGithub(submissionData) {
   const commitVerb = isUpdate ? "Update" : "Add";
   const commitMsg = `${commitVerb} solution: ${submissionData.problemName}`;
 
-  await putFile(
-    githubToken, githubUsername, repoName,
-    `${folderName}/problem.md`,
-    buildProblemMd(submissionData),
-    commitMsg
-  );
+  const files = [
+    { path: `${folderName}/problem.md`, content: buildProblemMd(submissionData) },
+    { path: `${folderName}/approach.md`, content: buildApproachMd(submissionData) },
+    { path: `${folderName}/solution.${ext}`, content: submissionData.code },
+  ];
 
-  await putFile(
-    githubToken, githubUsername, repoName,
-    `${folderName}/approach.md`,
-    buildApproachMd(submissionData),
-    commitMsg
-  );
+  const failed = [];
 
-  await putFile(
-    githubToken, githubUsername, repoName,
-    `${folderName}/solution.${ext}`,
-    submissionData.code,
-    commitMsg
-  );
+  for (const file of files) {
+    try {
+      await putFile(githubToken, githubUsername, repoName, file.path, file.content, commitMsg);
+    } catch (error) {
+      console.error(`Push failed for ${file.path}:`, error.message);
+      failed.push(file.path);
+    }
+  }
+
+  if (failed.length > 0) {
+    // Some files pushed, some didn't — caller needs to know this isn't a clean success.
+    const err = new Error(`Partial push — failed: ${failed.join(", ")}`);
+    err.partial = true;
+    err.failedFiles = failed;
+    throw err;
+  }
 }

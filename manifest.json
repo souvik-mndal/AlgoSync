@@ -16,7 +16,7 @@
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/problems/*"],
-      "js": ["toast.js", "content.js"]
+      "js": ["toast.js", "keepalive.js", "content.js"]
     }
   ],
   "action": {
