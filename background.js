@@ -2,14 +2,34 @@ console.log("AlgoSync AI: Background service worker running");
 
 const WORKER_URL = "https://cool-mode-3295.algosync-svk.workers.dev";
 
+function notifyTab(tabId, toastState, text, sub) {
+  if (!tabId) return; // no tab to notify (shouldn't normally happen, but don't crash if so)
+  chrome.tabs.sendMessage(tabId, {
+    type: "SHOW_TOAST",
+    state: toastState,
+    text,
+    sub,
+  }).catch(() => {
+    // Tab might be closed/navigated away — safe to ignore, nothing to show anyway
+  });
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "KEEPALIVE_PING") {
     sendResponse({ alive: true });
     return true;
   }
 
+  // if (message.type === "GENERATE_EXPLANATION") {
+  //   generateExplanation(message.data)
+  //     .then((explanation) => sendResponse({ success: true, explanation }))
+  //     .catch((error) => sendResponse({ success: false, error: error.message }));
+  //   return true;
+  // }
+
   if (message.type === "GENERATE_EXPLANATION") {
-    generateExplanation(message.data)
+    const tabId = sender.tab?.id;
+    generateExplanation(message.data, tabId)
       .then((explanation) => sendResponse({ success: true, explanation }))
       .catch((error) => sendResponse({ success: false, error: error.message }));
     return true;
@@ -41,32 +61,135 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async function generateExplanation(problemData) {
-  const response = await fetch(WORKER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(problemData),
-  });
+// async function generateExplanation(problemData) {
+//   const response = await fetch(WORKER_URL, {
+//     method: "POST",
+//     headers: { "Content-Type": "application/json" },
+//     body: JSON.stringify(problemData),
+//   });
 
-  const data = await response.json();
+//   const data = await response.json();
 
-  if (!response.ok) {
-  console.error("Worker error details:", data);
-  const status = (data.error?.status || "").toUpperCase();
-  const msg = (data.error?.message || "").toLowerCase();
-  let friendlyMessage = "Please try again";
+//   if (!response.ok) {
+//   console.error("Worker error details:", data);
+//   const status = (data.error?.status || "").toUpperCase();
+//   const msg = (data.error?.message || "").toLowerCase();
+//   let friendlyMessage = "Please try again";
 
-  if (status === "UNAVAILABLE" || msg.includes("high demand")) {
-    friendlyMessage = "Gemini is busy right now";
-  } else if (status === "RESOURCE_EXHAUSTED" || msg.includes("quota")) {
-    friendlyMessage = "Daily AI limit reached";
-  } else if (data.error?.message) {
-    friendlyMessage = data.error.message.slice(0, 60);
-  }
-  throw new Error(friendlyMessage);
+//   if (status === "UNAVAILABLE" || msg.includes("high demand")) {
+//     friendlyMessage = "Gemini is busy right now";
+//   } else if (status === "RESOURCE_EXHAUSTED" || msg.includes("quota")) {
+//     friendlyMessage = "Daily AI limit reached";
+//   } else if (data.error?.message) {
+//     friendlyMessage = data.error.message.slice(0, 60);
+//   }
+//   throw new Error(friendlyMessage);
+// }
+
+//   return data.explanation;
+// }
+
+
+const MODEL_PRIORITY = [
+  { id: "gemini-3.6-flash", label: "Gemini 3.6" },
+  { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Lite" },
+  { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Lite" },
+];
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10); // "2026-08-03"
 }
 
-  return data.explanation;
+async function generateExplanation(problemData, tabId) {
+  const { modelQuotaStatus = {} } = await chrome.storage.local.get("modelQuotaStatus");
+  const today = todayKey();
+
+  let lastFriendlyError = "Please try again";
+
+  for (let i = 0; i < MODEL_PRIORITY.length; i++) {
+    const { id: modelId, label } = MODEL_PRIORITY[i];
+    const status = modelQuotaStatus[modelId];
+
+    // Already known exhausted today — skip without wasting a request.
+    if (status?.exhaustedOn === today) continue;
+
+    // If this isn't the first model we're trying, it means an earlier one
+    // just failed — let the user know we're switching.
+    if (i > 0) {
+      notifyTab(tabId, "generating", "Writing notes", `Using backup model (${label})`);
+    }
+
+    const response = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...problemData, model: modelId }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Success — clear any stale exhausted flag for this model.
+      if (modelQuotaStatus[modelId]?.exhaustedOn) {
+        delete modelQuotaStatus[modelId].exhaustedOn;
+        await chrome.storage.local.set({ modelQuotaStatus });
+      }
+      return data.explanation;
+    }
+
+    console.error(`Worker error details (${modelId}):`, data);
+    const status_ = (data.error?.status || "").toUpperCase();
+    const msg = (data.error?.message || "").toLowerCase();
+    const isQuotaError = status_ === "RESOURCE_EXHAUSTED" || msg.includes("quota");
+
+    // if (isQuotaError) {
+    //   modelQuotaStatus[modelId] = { exhaustedOn: today };
+    //   await chrome.storage.local.set({ modelQuotaStatus });
+
+    //   const isLastModel = i === MODEL_PRIORITY.length - 1;
+    //   if (!isLastModel) {
+    //     notifyTab(tabId, "generating", `Daily limit reached for ${label}`, "Switching to backup model");
+    //     await new Promise((resolve) => setTimeout(resolve, 1500)); // let the user actually read this before it's overwritten
+    //   }
+    //   lastFriendlyError = "All models hit today's limit — try again tomorrow";
+    //   continue; // try next model
+    // }
+
+    if (isQuotaError) {
+      modelQuotaStatus[modelId] = { exhaustedOn: today };
+      await chrome.storage.local.set({ modelQuotaStatus });
+
+      // TEMP DEBUG — remove once we've confirmed the real error message
+      // format via a live quota hit. Lets us check the exact error later
+      // even after the service worker restarts and its console is wiped.
+      await chrome.storage.local.set({
+        lastQuotaError: {
+          modelId,
+          message: data.error?.message || null,
+          status: data.error?.status || null,
+          code: data.error?.code || null,
+          time: new Date().toISOString(),
+        },
+      });
+
+      const isLastModel = i === MODEL_PRIORITY.length - 1;
+      if (!isLastModel) {
+        notifyTab(tabId, "generating", `Daily limit reached for ${label}`, "Switching to backup model");
+        await new Promise((resolve) => setTimeout(resolve, 1500)); // let the user actually read this before it's overwritten
+      }
+      lastFriendlyError = "All models hit today's limit — try again tomorrow";
+      continue; // try next model
+    }
+
+    // Non-quota error (busy, network, etc.) — don't burn through fallbacks
+    // for an unrelated failure, just report it directly.
+    if (status_ === "UNAVAILABLE" || msg.includes("high demand")) {
+      throw new Error("Gemini is busy right now");
+    }
+    throw new Error(data.error?.message?.slice(0, 60) || "Please try again");
+  }
+
+  // Fell through the whole loop — every model was exhausted today.
+  throw new Error(lastFriendlyError);
 }
 
 

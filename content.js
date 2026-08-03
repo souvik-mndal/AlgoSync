@@ -500,6 +500,12 @@
 console.log("AlgoSync AI: Waiting for Submit (click or Ctrl+Enter)...");
 
 let problemInfo = {};
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "SHOW_TOAST") {
+    algosyncToast(message.state, message.text, message.sub);
+  }
+});
 // async function saveSubmission(finalData) {
 //   try {
 //     await chrome.storage.local.set({
@@ -540,8 +546,42 @@ let problemInfo = {};
 //     console.error("❌ Storage save failed:", error.message);
 //   }
 // }
+// function getEmbeddedQuestionData() {
+//   try {
+//     const scripts = document.querySelectorAll('script[type="application/json"]');
+//     for (const script of scripts) {
+//       const data = JSON.parse(script.textContent);
+//       const queries = data?.props?.pageProps?.dehydratedState?.queries;
+//       if (!queries) continue;
+//       for (const q of queries) {
+//         const question = q?.state?.data?.question;
+//         if (question) return question;
+//       }
+//     }
+//   } catch (e) {
+//     console.warn("⚠️ Could not parse embedded question JSON:", e);
+//   }
+//   return null;
+// }
+
+
+
+function getVisibleProblemTitle() {
+  // The one DOM element confirmed live to always reflect the currently
+  // visible problem, even right after SPA arrow-navigation — used to
+  // sanity-check the embedded JSON, which LeetCode does NOT reliably
+  // refresh on client-side prev/next navigation.
+  const link = document.querySelector('a.truncate.cursor-text[href^="/problems/"]');
+  if (!link) return null;
+  const raw = link.textContent.trim();
+  const match = raw.match(/^\d+\.\s*(.+)$/);
+  return match ? match[1].trim() : raw;
+}
+
 function getEmbeddedQuestionData() {
   try {
+    const visibleTitle = getVisibleProblemTitle();
+
     const scripts = document.querySelectorAll('script[type="application/json"]');
     for (const script of scripts) {
       const data = JSON.parse(script.textContent);
@@ -549,7 +589,17 @@ function getEmbeddedQuestionData() {
       if (!queries) continue;
       for (const q of queries) {
         const question = q?.state?.data?.question;
-        if (question) return question;
+        if (question) {
+          // Sanity check: does this JSON's title match what's actually
+          // visible on the page right now? If not, LeetCode hasn't
+          // refreshed this JSON after a client-side navigation — treat
+          // it as stale and fall back to DOM scraping instead.
+          if (visibleTitle && question.title && question.title.trim() !== visibleTitle) {
+            console.warn(`⚠️ Embedded JSON stale (found "${question.title}", page shows "${visibleTitle}") — falling back to DOM scraping`);
+            return null;
+          }
+          return question;
+        }
       }
     }
   } catch (e) {
