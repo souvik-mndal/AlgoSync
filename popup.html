@@ -747,6 +747,168 @@
 #ring-easy { filter: drop-shadow(0 0 2px rgba(122,180,130,0.4)); }
 #ring-medium { filter: drop-shadow(0 0 2px rgba(216,180,110,0.4)); }
 #ring-hard { filter: drop-shadow(0 0 2px rgba(199,120,110,0.4)); }
+
+
+#view-api-key {
+  height: auto;
+}
+
+.password-field-wrap {
+  position: relative;
+}
+
+.password-field-wrap .text-input {
+  padding-right: 44px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6f6d68;
+  flex-shrink: 0;
+}
+
+.password-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  opacity: 1;
+  transform: translateY(-50%);
+}
+
+.password-toggle-btn:active {
+  transform: translateY(-50%) scale(0.92);
+}
+
+.field-error-text {
+  font-size: 12px;
+  color: #b5564f;
+  margin-top: 6px;
+  min-height: 14px;
+}
+
+#api-key-confirm-btn {
+  background: #d3cfcb;
+  color: #302e2e;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.7),
+    0 10px 22px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -1px 2px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+#api-key-confirm-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#api-key-confirm-btn:active {
+  transform: scale(0.98);
+}
+#api-key-confirm-btn.muted {
+  background: #c4c0bb;
+  color: #9a9791;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+#api-key-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+/* ---------- Broken API Key Overlay (sits on top of Stats view) ---------- */
+#view-stats {
+  position: relative;
+}
+
+#api-key-invalid-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+#api-key-invalid-overlay.active {
+  display: flex;
+}
+
+.api-key-invalid-card {
+  width: 100%;
+  background: radial-gradient(circle at 15% 15%, #e6907f 0%, transparent 55%), radial-gradient(circle at 80% 20%, #eeb6a7 0%, transparent 50%), radial-gradient(circle at 50% 60%, #f7ddd6 0%, transparent 60%), radial-gradient(circle at 90% 85%, #dd7c62 0%, transparent 55%), #ecc7b7;
+  color: #8c3a30;
+  border-radius: 14px;
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.8),
+    0 16px 32px rgba(0,0,0,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+.api-key-invalid-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.api-key-invalid-heading {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.api-key-invalid-sub {
+  font-size: 12.5px;
+  font-weight: 400;
+  opacity: 0.9;
+  margin: 0;
+  line-height: 1.5;
+}
+
+#api-key-invalid-btn {
+  width: 100%;
+  margin-top: 4px;
+  background: rgba(255,255,255,0.4);
+  color: #6e2b22;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 6px 14px rgba(0,0,0,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+#api-key-invalid-btn:hover {
+  opacity: 0.92;
+  transform: scale(1.015);
+}
+#api-key-invalid-btn:active {
+  transform: scale(0.98);
+}
   </style>
 </head>
 <body>
@@ -851,6 +1013,52 @@
   <div id="repo-select-status" class="repo-status"></div>
 </div>
 
+
+<div class="view" id="view-api-key">
+  <div class="account-row">
+    <div class="account-avatar">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </div>
+    <span class="account-name" id="api-key-account-name">souvik-mndal</span>
+    <div class="status-dot"></div>
+  </div>
+
+  <div>
+    <p class="repo-select-title">Add your Gemini API key</p>
+    <p class="subtext">Used to generate your solution notes.</p>
+  </div>
+
+  <div>
+    <label class="field-label">Gemini API key</label>
+    <div class="password-field-wrap">
+      <input type="password" id="api-key-input" class="text-input" placeholder="Paste your key here" autocomplete="off" />
+      <button type="button" id="api-key-toggle-visibility" class="password-toggle-btn" aria-label="Show key">
+        <svg id="eye-icon-show" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        <svg id="eye-icon-hide" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+          <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.4 21.4 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.4 21.4 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        </svg>
+      </button>
+    </div>
+    <div id="api-key-error" class="field-error-text"></div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <button id="api-key-confirm-btn">
+    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+    </svg>
+    <span id="api-key-confirm-btn-text">Save & Continue</span>
+  </button>
+  <div id="api-key-status" class="repo-status"></div>
+</div>
+
   <!-- STATE 2 & 3 share the account row, then branch -->
   <div class="view" id="view-connected">
     <div class="account-row">
@@ -887,6 +1095,21 @@
 
     <!-- STATE 3: connected, has submissions -->
     <div class="view" id="view-stats">
+      <div id="api-key-invalid-overlay">
+        <div class="api-key-invalid-card">
+          <div class="api-key-invalid-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <p class="api-key-invalid-heading">API key issue</p>
+          <p class="api-key-invalid-sub">Your Gemini key isn't working. Update it to keep generating notes.</p>
+          <button id="api-key-invalid-btn">Update key</button>
+        </div>
+      </div>
+
       <div class="ring-row">
         <div class="ring-wrap">
   <div class="ring-hollow-base"></div>
@@ -937,7 +1160,7 @@
       Disconnect
     </button>
   </div>
-
+  <script src="keyVault.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

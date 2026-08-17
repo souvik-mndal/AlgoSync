@@ -1,3 +1,4 @@
+importScripts("keyVault.js");
 console.log("AlgoSync AI: Background service worker running");
 
 const WORKER_URL = "https://cool-mode-3295.algosync-svk.workers.dev";
@@ -101,6 +102,14 @@ function todayKey() {
 }
 
 async function generateExplanation(problemData, tabId) {
+  const { githubUsername } = await chrome.storage.local.get("githubUsername");
+  const userApiKey = await AlgoSyncKeyVault.getApiKey(githubUsername);
+
+  if (!userApiKey) {
+    notifyTab(tabId, "failed", "Insert your key to generate explanations");
+    throw new Error("No Gemini API key saved");
+  }
+
   const { modelQuotaStatus = {} } = await chrome.storage.local.get("modelQuotaStatus");
   const today = todayKey();
 
@@ -122,7 +131,7 @@ async function generateExplanation(problemData, tabId) {
     const response = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...problemData, model: modelId }),
+      body: JSON.stringify({ ...problemData, model: modelId, userApiKey }),
     });
 
     const data = await response.json();
@@ -133,12 +142,21 @@ async function generateExplanation(problemData, tabId) {
         delete modelQuotaStatus[modelId].exhaustedOn;
         await chrome.storage.local.set({ modelQuotaStatus });
       }
+
+      // Self-heal: if the key was previously flagged broken but this call
+      // just succeeded (e.g. user fixed it on Google's side directly,
+      // without ever opening our popup), clear the flag silently now.
+      const { apiKeyInvalid } = await chrome.storage.local.get("apiKeyInvalid");
+      if (apiKeyInvalid) {
+        await chrome.storage.local.set({ apiKeyInvalid: false });
+      }
+
       return data.explanation;
     }
 
     console.error(`Worker error details (${modelId}):`, data);
-    const status_ = (data.error?.status || "").toUpperCase();
-    const msg = (data.error?.message || "").toLowerCase();
+    const status_ = (data.error?.error?.status || data.error?.status || "").toUpperCase();
+    const msg = (data.error?.error?.message || data.error?.message || "").toLowerCase();
     const isQuotaError = status_ === "RESOURCE_EXHAUSTED" || msg.includes("quota");
 
     // if (isQuotaError) {
@@ -161,15 +179,15 @@ async function generateExplanation(problemData, tabId) {
       // TEMP DEBUG — remove once we've confirmed the real error message
       // format via a live quota hit. Lets us check the exact error later
       // even after the service worker restarts and its console is wiped.
-      await chrome.storage.local.set({
-        lastQuotaError: {
-          modelId,
-          message: data.error?.message || null,
-          status: data.error?.status || null,
-          code: data.error?.code || null,
-          time: new Date().toISOString(),
-        },
-      });
+      // await chrome.storage.local.set({
+      //   lastQuotaError: {
+      //     modelId,
+      //     message: data.error?.message || null,
+      //     status: data.error?.status || null,
+      //     code: data.error?.code || null,
+      //     time: new Date().toISOString(),
+      //   },
+      // });
 
       const isLastModel = i === MODEL_PRIORITY.length - 1;
       if (!isLastModel) {
@@ -178,6 +196,16 @@ async function generateExplanation(problemData, tabId) {
       }
       lastFriendlyError = "All models hit today's limit — try again tomorrow";
       continue; // try next model
+    }
+
+    // Key itself is broken (revoked/expired/no permission) — distinct from
+    // quota or busy errors. Flag it so the popup shows a persistent warning
+    // even after this toast disappears.
+    const isAuthError = status_ === "UNAUTHENTICATED" || status_ === "PERMISSION_DENIED";
+    if (isAuthError) {
+      await chrome.storage.local.set({ apiKeyInvalid: true });
+      notifyTab(tabId, "failed", "Your Gemini key isn't working", "Update it to keep generating notes");
+      throw new Error("Your Gemini key isn't working");
     }
 
     // Non-quota error (busy, network, etc.) — don't burn through fallbacks

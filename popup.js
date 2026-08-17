@@ -22,6 +22,20 @@ const recentList = document.getElementById("recent-list");
 
 // Repo selection elements
 const repoSelectAccountName = document.getElementById("repo-select-account-name");
+
+// API key elements
+const viewApiKey = document.getElementById("view-api-key");
+const apiKeyInvalidOverlay = document.getElementById("api-key-invalid-overlay");
+const apiKeyInvalidBtn = document.getElementById("api-key-invalid-btn");
+const apiKeyAccountName = document.getElementById("api-key-account-name");
+const apiKeyInput = document.getElementById("api-key-input");
+const apiKeyToggleVisibility = document.getElementById("api-key-toggle-visibility");
+const eyeIconShow = document.getElementById("eye-icon-show");
+const eyeIconHide = document.getElementById("eye-icon-hide");
+const apiKeyError = document.getElementById("api-key-error");
+const apiKeyConfirmBtn = document.getElementById("api-key-confirm-btn");
+const apiKeyConfirmBtnText = document.getElementById("api-key-confirm-btn-text");
+const apiKeyStatus = document.getElementById("api-key-status");
 const tabNew = document.getElementById("tab-new");
 const tabExisting = document.getElementById("tab-existing");
 const newRepoMode = document.getElementById("new-repo-mode");
@@ -40,11 +54,103 @@ let currentVisibility = "public";
 let fetchedRepos = [];
 let selectedExistingRepo = null;
 
+
+/* =========================================================================
+ * API KEY INVALID OVERLAY — button navigates to key-entry screen
+ * ========================================================================= */
+apiKeyInvalidBtn.addEventListener("click", async () => {
+  const { githubUsername } = await chrome.storage.local.get("githubUsername");
+  apiKeyAccountName.textContent = githubUsername;
+  apiKeyError.textContent = "";
+  apiKeyStatus.textContent = "";
+  apiKeyStatus.className = "repo-status";
+  apiKeyInput.value = "";
+  apiKeyConfirmBtn.disabled = false;
+  apiKeyConfirmBtnText.textContent = "Save & Continue";
+  updateApiKeyButtonState();
+  showTopView(viewApiKey);
+});
+
+
+/* =========================================================================
+ * API KEY — SHOW/HIDE TOGGLE
+ * ========================================================================= */
+function updateApiKeyButtonState() {
+  if (!apiKeyInput.value.trim()) {
+    apiKeyConfirmBtn.classList.add("muted");
+  } else {
+    apiKeyConfirmBtn.classList.remove("muted");
+  }
+}
+
+apiKeyInput.addEventListener("input", updateApiKeyButtonState);
+
+apiKeyToggleVisibility.addEventListener("click", () => {
+  const isPassword = apiKeyInput.type === "password";
+  apiKeyInput.type = isPassword ? "text" : "password";
+  eyeIconShow.style.display = isPassword ? "none" : "block";
+  eyeIconHide.style.display = isPassword ? "block" : "none";
+});
+
+/* =========================================================================
+ * API KEY — CONFIRM (VALIDATE + SAVE)
+ * ========================================================================= */
+apiKeyConfirmBtn.addEventListener("click", async () => {
+  const keyValue = apiKeyInput.value.trim();
+
+  apiKeyError.textContent = "";
+  apiKeyStatus.textContent = "";
+  apiKeyStatus.className = "repo-status";
+
+  if (!keyValue) {
+    apiKeyError.textContent = "Please enter your API key.";
+    return;
+  }
+
+  const { githubUsername } = await chrome.storage.local.get("githubUsername");
+
+  apiKeyConfirmBtn.disabled = true;
+  apiKeyConfirmBtnText.textContent = "Validating...";
+
+  try {
+    const response = await fetch(`${WORKER_URL}/validate-gemini-key`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey: keyValue, userId: githubUsername }),
+    });
+
+    const data = await response.json();
+
+    if (!data.valid) {
+      apiKeyInput.value = "";
+      apiKeyError.textContent = data.reason || "That doesn't look like a valid key — check it and try again.";
+      apiKeyConfirmBtn.disabled = false;
+      apiKeyConfirmBtnText.textContent = "Save & Continue";
+      return;
+    }
+
+    await AlgoSyncKeyVault.saveApiKey(githubUsername, keyValue);
+    await chrome.storage.local.set({ apiKeyInvalid: false });
+
+    apiKeyStatus.textContent = "Key saved!";
+    apiKeyStatus.className = "repo-status";
+    apiKeyConfirmBtnText.textContent = "Saved";
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    init();
+  } catch (error) {
+    console.error("API key validation error:", error);
+    apiKeyError.textContent = "Couldn't check your key right now — try again.";
+    apiKeyConfirmBtn.disabled = false;
+    apiKeyConfirmBtnText.textContent = "Save & Continue";
+  }
+});
+
 /* =========================================================================
  * VIEW SWITCHING
  * ========================================================================= */
 function showTopView(view) {
-  [viewDisconnected, viewConnected, viewRepoSelect].forEach((v) => v.classList.remove("active"));
+  [viewDisconnected, viewConnected, viewRepoSelect, viewApiKey].forEach((v) => v.classList.remove("active"));
   view.classList.add("active");
 }
 
@@ -117,17 +223,22 @@ async function init() {
     return;
   }
 
+  const hasKey = await AlgoSyncKeyVault.hasApiKey(result.githubUsername);
+  if (!hasKey) {
+    apiKeyAccountName.textContent = result.githubUsername;
+    apiKeyError.textContent = "";
+    apiKeyStatus.textContent = "";
+    apiKeyStatus.className = "repo-status";
+    apiKeyInput.value = "";
+    apiKeyConfirmBtn.disabled = false;
+    apiKeyConfirmBtnText.textContent = "Save & Continue";
+    updateApiKeyButtonState();
+    showTopView(viewApiKey);
+    return;
+  }
+
   accountName.textContent = `${result.githubUsername} · ${result.repoName}`;
   showTopView(viewConnected);
-
-//   const repoExists = await verifyRepoExists(result.githubToken, result.githubUsername, result.repoName);
-
-//   if (!repoExists) {
-//   await chrome.storage.local.remove(["repoName", "submissions"]);
-//   showSubView(viewRepoMissing);
-//   return;
-// }
-
 
 const repoCheck = await verifyRepoExists(result.githubToken, result.githubUsername, result.repoName);
 
@@ -153,6 +264,9 @@ const repoCheck = await verifyRepoExists(result.githubToken, result.githubUserna
 
   renderStats(entries);
   showSubView(viewStats);
+
+  const { apiKeyInvalid } = await chrome.storage.local.get("apiKeyInvalid");
+  apiKeyInvalidOverlay.classList.toggle("active", !!apiKeyInvalid);
 }
 
 // async function verifyRepoExists(token, owner, repoName) {
