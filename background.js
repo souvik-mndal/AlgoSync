@@ -248,6 +248,31 @@ function getFileExtension(language) {
   return map[(language || "").toLowerCase().trim()] || "txt";
 }
 
+function getFolderName(language) {
+  const map = {
+    "c++": "Cpp",
+    "java": "Java",
+    "python3": "Python",
+    "python": "Python",
+    "javascript": "JavaScript",
+    "typescript": "TypeScript",
+    "c#": "CSharp",
+    "c": "C",
+    "go": "Go",
+    "kotlin": "Kotlin",
+    "swift": "Swift",
+    "rust": "Rust",
+    "ruby": "Ruby",
+    "php": "PHP",
+    "dart": "Dart",
+    "scala": "Scala",
+    "elixir": "Elixir",
+    "erlang": "Erlang",
+    "racket": "Racket",
+  };
+  return map[(language || "").toLowerCase().trim()] || "Unknown";
+}
+
 function padProblemNumber(num) {
   const n = String(num);
   return n.length === 1 ? `0${n}` : n;
@@ -458,6 +483,60 @@ async function putFile(token, owner, repo, path, content, commitMessage) {
 // }
 
 
+// async function pushToGithub(submissionData) {
+//   const { githubToken, githubUsername, repoName } = await chrome.storage.local.get([
+//     "githubToken",
+//     "githubUsername",
+//     "repoName",
+//   ]);
+
+//   if (!githubToken || !githubUsername || !repoName) {
+//     throw new Error("GitHub not fully connected");
+//   }
+
+//   const folderName = `${padProblemNumber(submissionData.problemNumber)}-${slugifyForFolder(submissionData.problemName)}`;
+//   const ext = getFileExtension(submissionData.language);
+//   const isUpdate = submissionData._isUpdate; // passed in from caller
+
+//   const commitVerb = isUpdate ? "Update" : "Add";
+//   const commitMsg = `${commitVerb} solution: ${submissionData.problemName}`;
+
+//   const files = [
+//     { path: `${folderName}/problem.md`, content: buildProblemMd(submissionData) },
+//     { path: `${folderName}/approach.md`, content: buildApproachMd(submissionData) },
+//     { path: `${folderName}/solution.${ext}`, content: submissionData.code },
+//   ];
+
+//   const failed = [];
+
+//   for (const file of files) {
+//     try {
+//       await putFile(githubToken, githubUsername, repoName, file.path, file.content, commitMsg);
+//     } catch (error) {
+//       console.error(`Push failed for ${file.path}:`, error.message);
+//       failed.push(file.path);
+//     }
+//   }
+
+//   if (failed.length > 0) {
+//     // Some files pushed, some didn't — caller needs to know this isn't a clean success.
+//     const err = new Error(`Partial push — failed: ${failed.join(", ")}`);
+//     err.partial = true;
+//     err.failedFiles = failed;
+//     throw err;
+//   }
+// }
+
+
+async function problemMdExists(token, owner, repo, path) {
+  const { confirmed, sha } = await getFileSha(token, owner, repo, path);
+  // If we couldn't confirm (network hiccup), assume it might exist and
+  // skip writing rather than risk clobbering it — safer default given
+  // problem.md is meant to be write-once.
+  if (!confirmed) return true;
+  return !!sha;
+}
+
 async function pushToGithub(submissionData) {
   const { githubToken, githubUsername, repoName } = await chrome.storage.local.get([
     "githubToken",
@@ -470,19 +549,38 @@ async function pushToGithub(submissionData) {
   }
 
   const folderName = `${padProblemNumber(submissionData.problemNumber)}-${slugifyForFolder(submissionData.problemName)}`;
-  const ext = getFileExtension(submissionData.language);
+  const langSlug = submissionData.langSlug || getFolderName(submissionData.language);
   const isUpdate = submissionData._isUpdate; // passed in from caller
 
-  const commitVerb = isUpdate ? "Update" : "Add";
-  const commitMsg = `${commitVerb} solution: ${submissionData.problemName}`;
+  // submissionData.languages[langSlug] holds this language's code/stats/
+  // explanation — buildProblemMd/buildApproachMd expect those fields at
+  // the top level, so we flatten just this one language back out here.
+  const langData = submissionData.languages?.[langSlug] || {};
+  submissionData = { ...submissionData, ...langData };
 
+  const ext = getFileExtension(submissionData.language);
+
+  const commitVerb = isUpdate ? "Update" : "Add";
+  const commitMsg = `${commitVerb} solution: ${submissionData.problemName} (${langSlug})`;
+
+  const problemMdPath = `${folderName}/problem.md`;
   const files = [
-    { path: `${folderName}/problem.md`, content: buildProblemMd(submissionData) },
-    { path: `${folderName}/approach.md`, content: buildApproachMd(submissionData) },
-    { path: `${folderName}/solution.${ext}`, content: submissionData.code },
+    { path: `${folderName}/${langSlug}/approach.md`, content: buildApproachMd(submissionData) },
+    { path: `${folderName}/${langSlug}/solution.${ext}`, content: submissionData.code },
   ];
 
   const failed = [];
+
+  // problem.md is write-once — only push it if it doesn't already exist.
+  try {
+    const alreadyExists = await problemMdExists(githubToken, githubUsername, repoName, problemMdPath);
+    if (!alreadyExists) {
+      await putFile(githubToken, githubUsername, repoName, problemMdPath, buildProblemMd(submissionData), commitMsg);
+    }
+  } catch (error) {
+    console.error(`Push failed for ${problemMdPath}:`, error.message);
+    failed.push(problemMdPath);
+  }
 
   for (const file of files) {
     try {

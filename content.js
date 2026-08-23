@@ -203,6 +203,7 @@ async function saveSubmission(finalData) {
     }
 
     const problemNumber = finalData.problemNumber;
+    const langSlug = getLanguageSlug(finalData.language);
     const decision = await shouldCallAI(problemNumber, finalData.code, finalData.language);
 
     console.log(`🔍 Decision: ${decision.call ? "Call AI" : "Skip AI"} — ${decision.reason}`);
@@ -210,10 +211,39 @@ async function saveSubmission(finalData) {
     const result = await chrome.storage.local.get("submissions");
     const submissions = result.submissions || {};
 
-    if (!decision.call) {
-      const existing = submissions[problemNumber] || {};
-      const mergedData = { ...existing, ...finalData, explanation: existing.explanation };
-      submissions[problemNumber] = mergedData;
+      if (!decision.call) {
+      const problem = submissions[problemNumber] || {};
+      const existingLang = problem.languages?.[langSlug] || {};
+
+      // Shared fields refresh normally (title/description rarely change,
+      // but harmless to keep current); the language entry keeps its
+      // existing explanation since code didn't change.
+      const {
+        code, language, url, timestamp,
+        testCasesPassed, runtime, runtimeBeats, memory, memoryBeats,
+        ...sharedFields
+      } = finalData;
+      const mergedProblem = {
+        ...problem,
+        ...sharedFields,
+        problemNumber,
+        languages: {
+          ...problem.languages,
+          [langSlug]: {
+            ...existingLang,
+            code,
+            language,
+            url,
+            timestamp,
+            testCasesPassed,
+            runtime,
+            runtimeBeats,
+            memory,
+            memoryBeats,
+          },
+        },
+      };
+      submissions[problemNumber] = mergedProblem;
       await chrome.storage.local.set({ submissions });
       console.log("⏭️ Skipped AI call — code unchanged");
 
@@ -222,7 +252,7 @@ async function saveSubmission(finalData) {
         // succeed — retry just the push, skip the AI call entirely.
         console.log("🔁 Retrying incomplete push (no AI call needed)...");
         algosyncToast("generating", "Finishing GitHub push", "Retrying previous push");
-        pushToGithubAndRecordStatus(problemNumber, mergedData, true);
+        pushToGithubAndRecordStatus(problemNumber, langSlug, mergedProblem, true);
       } else {
         algosyncToast("ready", "Already documented");
       }
@@ -241,11 +271,38 @@ async function saveSubmission(finalData) {
 
         const updated = await chrome.storage.local.get("submissions");
         const subs = updated.submissions || {};
-        const fullData = { ...finalData, explanation: response.explanation, pushStatus: "pending" };
-        subs[problemNumber] = fullData;
+        const problem = subs[problemNumber] || {};
+
+        const {
+          code, language, url, timestamp,
+          testCasesPassed, runtime, runtimeBeats, memory, memoryBeats,
+          ...sharedFields
+        } = finalData;
+        const mergedProblem = {
+          ...problem,
+          ...sharedFields,
+          problemNumber,
+          languages: {
+            ...problem.languages,
+            [langSlug]: {
+              code,
+              language,
+              url,
+              timestamp,
+              testCasesPassed,
+              runtime,
+              runtimeBeats,
+              memory,
+              memoryBeats,
+              explanation: response.explanation,
+              pushStatus: "pending",
+            },
+          },
+        };
+        subs[problemNumber] = mergedProblem;
         await chrome.storage.local.set({ submissions: subs });
 
-        pushToGithubAndRecordStatus(problemNumber, fullData, decision.reason === "code changed");
+        pushToGithubAndRecordStatus(problemNumber, langSlug, mergedProblem, decision.reason === "code changed");
       } else {
           console.error("❌ AI explanation failed:", response?.error);
           const errMsg = response?.error || "Explanation wasn't saved";
@@ -292,8 +349,60 @@ async function saveSubmission(finalData) {
 // }
 
 
-async function pushToGithubAndRecordStatus(problemNumber, fullData, isUpdate) {
-  const pushData = { ...fullData, _isUpdate: isUpdate };
+// async function pushToGithubAndRecordStatus(problemNumber, fullData, isUpdate) {
+//   const pushData = { ...fullData, _isUpdate: isUpdate };
+
+//   // The service worker can go idle/die mid-request (MV3 behavior), in which
+//   // case sendMessage's callback never fires — no error, no timeout, nothing.
+//   // This wraps it in a race so a dead worker can't leave pushStatus stuck
+//   // on "pending" forever.
+//   const responsePromise = new Promise((resolve) => {
+//     chrome.runtime.sendMessage(
+//       { type: "PUSH_TO_GITHUB", data: pushData },
+//       (pushResponse) => {
+//         if (chrome.runtime.lastError) {
+//           console.error("⚠️ sendMessage error:", chrome.runtime.lastError.message);
+//           resolve(null);
+//           return;
+//         }
+//         resolve(pushResponse);
+//       }
+//     );
+//   });
+
+//   const timeoutPromise = new Promise((resolve) => {
+//     setTimeout(() => resolve(null), 20000); // 20s — generous but bounded
+//   });
+
+//   const pushResponse = await Promise.race([responsePromise, timeoutPromise]);
+
+//   const status = pushResponse?.pushStatus || "failed";
+
+//   const latest = await chrome.storage.local.get("submissions");
+//   const subs = latest.submissions || {};
+//   if (subs[problemNumber]) {
+//     subs[problemNumber].pushStatus = status;
+//     await chrome.storage.local.set({ submissions: subs });
+//   }
+
+//   if (pushResponse && pushResponse.success) {
+//     console.log("✅ Pushed to GitHub");
+//     algosyncToast("pushed");
+//   } else if (pushResponse?.partial) {
+//     console.error("⚠️ Partial GitHub push:", pushResponse.failedFiles);
+//     algosyncToast("failed", "Push partially failed", `Missing: ${pushResponse.failedFiles.join(", ")} — will retry next submit`);
+//   } else if (pushResponse === null) {
+//     console.error("❌ No response from background — service worker may have gone idle");
+//     algosyncToast("failed", "Push status unknown", "Will retry next submit");
+//   } else {
+//     console.error("❌ GitHub push failed:", pushResponse?.error);
+//     algosyncToast("failed", "Notes saved, but GitHub push failed", pushResponse?.error);
+//   }
+// }
+
+
+async function pushToGithubAndRecordStatus(problemNumber, langSlug, fullData, isUpdate) {
+  const pushData = { ...fullData, langSlug, _isUpdate: isUpdate };
 
   // The service worker can go idle/die mid-request (MV3 behavior), in which
   // case sendMessage's callback never fires — no error, no timeout, nothing.
@@ -323,8 +432,8 @@ async function pushToGithubAndRecordStatus(problemNumber, fullData, isUpdate) {
 
   const latest = await chrome.storage.local.get("submissions");
   const subs = latest.submissions || {};
-  if (subs[problemNumber]) {
-    subs[problemNumber].pushStatus = status;
+  if (subs[problemNumber]?.languages?.[langSlug]) {
+    subs[problemNumber].languages[langSlug].pushStatus = status;
     await chrome.storage.local.set({ submissions: subs });
   }
 
@@ -370,7 +479,35 @@ function normalizeCode(code, language) {
     cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, "");
   }
 
-  return cleaned.replace(/\s+/g, " ").trim();
+    return cleaned.replace(/\s+/g, " ").trim();
+}
+
+// Converts LeetCode's raw language string into our canonical slug.
+// Same mapping as background.js's getFileExtension() — kept in sync
+// intentionally so storage keys and GitHub folder names never disagree.
+function getLanguageSlug(language) {
+  const map = {
+    "c++": "Cpp",
+    "java": "Java",
+    "python3": "Python",
+    "python": "Python",
+    "javascript": "JavaScript",
+    "typescript": "TypeScript",
+    "c#": "CSharp",
+    "c": "C",
+    "go": "Go",
+    "kotlin": "Kotlin",
+    "swift": "Swift",
+    "rust": "Rust",
+    "ruby": "Ruby",
+    "php": "PHP",
+    "dart": "Dart",
+    "scala": "Scala",
+    "elixir": "Elixir",
+    "erlang": "Erlang",
+    "racket": "Racket",
+  };
+  return map[(language || "").toLowerCase().trim()] || "Unknown";
 }
 
 
@@ -395,18 +532,20 @@ function normalizeCode(code, language) {
 //   return { call: true, reason: "code changed" };
 // }
 async function shouldCallAI(problemNumber, newCode, language) {
+  const langSlug = getLanguageSlug(language);
   const result = await chrome.storage.local.get("submissions");
   const submissions = result.submissions || {};
-  const existing = submissions[problemNumber];
+  const problem = submissions[problemNumber];
+  const existing = problem?.languages?.[langSlug];
 
   if (!existing) {
-    return { call: true, reason: "new problem" };
+    return { call: true, reason: "new language for this problem" };
   }
   if (!existing.explanation) {
     return { call: true, reason: "no explanation yet — retrying" };
   }
   const normalizedNew = normalizeCode(newCode, language);
-  const normalizedOld = normalizeCode(existing.code, existing.language);
+  const normalizedOld = normalizeCode(existing.code, language);
 
   if (normalizedNew === normalizedOld) {
     // Code unchanged — but if the last push didn't fully succeed,
