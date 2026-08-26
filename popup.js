@@ -765,6 +765,9 @@ async function disconnectGithub() {
 connectBtn.addEventListener("click", startGithubAuth);
 disconnectBtn.addEventListener("click", disconnectGithub);
 reconnectRepoBtn.addEventListener("click", async () => {
+  // Repo is confirmed gone — wipe local solve history since it's tied to
+  // the dead repo, before taking the user to pick/connect a new one.
+  await chrome.storage.local.remove(["submissions"]);
   const { githubToken, githubUsername } = await chrome.storage.local.get(["githubToken", "githubUsername"]);
 repoSelectAccountName.textContent = githubUsername;
   repoSelectStatus.textContent = "";
