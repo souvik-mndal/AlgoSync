@@ -17,6 +17,10 @@
     {
       "matches": ["https://leetcode.com/problems/*"],
       "js": ["toast.js", "keepalive.js", "content.js"]
+    },
+    {
+      "matches": ["https://leetcode.com/problemset/*"],
+      "js": ["keepalive.js"]
     }
   ],
   "action": {
