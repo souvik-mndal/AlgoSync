@@ -1228,31 +1228,69 @@ async function captureAcceptedDetails() {
   let code = "";
   let language = "Unknown";
 
-  // Find the POTD "Code" section
+  // Known LeetCode language display names — used to sanity-check whatever
+  // text we scrape as "language", since header-text scraping can land on
+  // the wrong div (e.g. just "Code") depending on which layout is active.
+  const KNOWN_LANGUAGES = [
+    "c++", "java", "python3", "python", "javascript", "typescript", "c#",
+    "c", "go", "kotlin", "swift", "rust", "ruby", "php", "dart", "scala",
+    "elixir", "erlang", "racket",
+  ];
+  const isKnownLanguage = (val) =>
+    val && KNOWN_LANGUAGES.includes(val.toLowerCase().trim());
+
+  // ATTEMPT 1 (original — split-pane layout, "Accepted" panel separate
+  // from the "Code" panel): a div whose innerText literally starts with
+  // "Code\n<Language>".
   const header = [...document.querySelectorAll("div")].find(el => {
     const text = el.innerText?.trim();
     return text && text.startsWith("Code\n");
   });
 
   if (header) {
-    // Get language — primary method reads the header text layout
     const lines = header.innerText.split("\n");
-    language = lines[1] || "Unknown";
-
+    const candidateLang = lines[1] || "Unknown";
     const codeBlock = header.querySelector("pre code");
 
+    if (codeBlock && isKnownLanguage(candidateLang)) {
+      language = candidateLang;
+      const cloned = codeBlock.cloneNode(true);
+      cloned.querySelectorAll(".linenumber").forEach(el => el.remove());
+      code = cloned.textContent.trim();
+    }
+  }
+
+  // ATTEMPT 2 (tabbed layout — "Accepted" result opens in the same panel
+  // as "Code"): Attempt 1's header div matches the wrong element here
+  // (its innerText is just "Code", no language line, and the real
+  // <pre><code> lives outside that div entirely). Go straight to the
+  // syntax-highlighted code block itself, which is layout-independent,
+  // and read the language off its "language-*" class.
+  if (!code) {
+    const codeBlock = document.querySelector('pre code[class*="language-"]');
     if (codeBlock) {
-      // Fallback: if the text-layout method gave us nothing usable,
-      // try reading it off the code block's language-* class instead.
-      if (language === "Unknown" || !language.trim()) {
-        const langClass = [...codeBlock.classList].find((c) => c.startsWith("language-"));
-        if (langClass) language = langClass.replace("language-", "");
-      }
+      const langClass = [...codeBlock.classList].find((c) => c.startsWith("language-"));
+      const slugFromClass = langClass ? langClass.replace("language-", "") : "";
+
+      // Map common class slugs to LeetCode's display names so this stays
+      // consistent with getLanguageSlug()'s expected input downstream.
+      const CLASS_SLUG_TO_DISPLAY = {
+        cpp: "C++", java: "Java", python: "Python3", python3: "Python3",
+        javascript: "JavaScript", typescript: "TypeScript", csharp: "C#",
+        c: "C", go: "Go", kotlin: "Kotlin", swift: "Swift", rust: "Rust",
+        ruby: "Ruby", php: "PHP", dart: "Dart", scala: "Scala",
+        elixir: "Elixir", erlang: "Erlang", racket: "Racket",
+      };
+      language = CLASS_SLUG_TO_DISPLAY[slugFromClass.toLowerCase()] || slugFromClass || "Unknown";
 
       const cloned = codeBlock.cloneNode(true);
       cloned.querySelectorAll(".linenumber").forEach(el => el.remove());
       code = cloned.textContent.trim();
     }
+  }
+
+  if (!code) {
+    console.warn("⚠️ Both code-scraping attempts failed — no code captured this submission.");
   }
 
   const finalData = {
