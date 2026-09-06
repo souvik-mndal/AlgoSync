@@ -453,7 +453,249 @@
 #disconnect-btn:active {
   transform: scale(0.98);
 }
+#backfill-start-btn,
+#backfill-start-btn-empty {
+  background: #d3cfcb;
+  color: #302e2e;
+  padding: 14px;
+  font-size: 14px;
+  /* font-weight: 600; */
+  font-family: inherit;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 6px 14px rgba(0,0,0,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+#backfill-start-btn:hover,
+#backfill-start-btn-empty:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#backfill-start-btn:active,
+#backfill-start-btn-empty:active {
+  transform: scale(0.98);
+}
 
+#backfill-confirm-btn {
+  background: #d3cfcb;
+  color: #302e2e;
+  padding: 14px;
+  font-size: 14px;
+  /* font-weight: 600; */
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.7),
+    0 10px 22px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -1px 2px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+#backfill-confirm-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#backfill-confirm-btn:active {
+  transform: scale(0.98);
+}
+#backfill-confirm-btn.muted {
+  background: #c4c0bb;
+  color: #9a9791;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* #backfill-cancel-btn,
+#backfill-error-back-btn {
+  background: red;
+  color: #6f6d68;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: none;
+}
+#backfill-cancel-btn:hover,
+#backfill-error-back-btn:hover {
+  color: #302e2e;
+  opacity: 1;
+} */
+
+
+
+
+
+#backfill-cancel-btn,
+#backfill-error-back-btn {
+  background: #d3cfcb;
+  color: #8c3a30;
+  padding: 14px;
+  font-size: 14px;
+  margin-top: 16px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 6px 14px rgba(0,0,0,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+#backfill-cancel-btn:hover,
+#backfill-error-back-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+
+
+
+
+
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  background: #d3cfcb;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+}
+.progress-fill {
+  height: 100%;
+  background: #79b689;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.progress-tally {
+  display: flex;
+  gap: 16px;
+  font-size: 12.5px;
+  color: #6f6d68;
+}
+.progress-tally-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.progress-tally-item.success svg { color: #5a8763; }
+.progress-tally-item.failed svg { color: #b5564f; }
+
+#backfill-progress-cancel-btn {
+  background: #d3cfcb;
+  color: #8c3a30;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 6px 14px rgba(0,0,0,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+#backfill-progress-cancel-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#backfill-progress-cancel-btn:active {
+  transform: scale(0.98);
+}
+#backfill-progress-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+.summary-failed-list {
+  display: flex;
+  flex-direction: column;
+  background: #d9d6d2;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.4);
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b5b1ab transparent;
+}
+.summary-failed-list::-webkit-scrollbar {
+  width: 6px;
+}
+.summary-failed-list::-webkit-scrollbar-thumb {
+  background: #b5b1ab;
+  border-radius: 10px;
+}
+
+.summary-failed-row {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.summary-failed-row:last-child {
+  border-bottom: none;
+}
+
+.summary-failed-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #8c3a30;
+}
+
+.summary-failed-error {
+  font-size: 12px;
+  color: #6f6d68;
+  margin-top: 3px;
+  margin-left: 20px;
+}
+
+.summary-failed-link {
+  font-size: 12px;
+  color: #185fa5;
+  margin-top: 4px;
+  margin-left: 20px;
+  display: inline-block;
+  text-decoration: none;
+}
+.summary-failed-link:hover {
+  text-decoration: underline;
+}
+
+#backfill-summary-retry-btn {
+  background: #d3cfcb;
+  color: #302e2e;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.7),
+    0 10px 22px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    inset 0 -1px 2px rgba(0,0,0,0.05);
+  transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+#backfill-summary-retry-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#backfill-summary-retry-btn:active {
+  transform: scale(0.98);
+}
+
+#backfill-summary-done-btn {
+  background: #d3cfcb;
+  color: #302e2e;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 1px rgba(255,255,255,0.6),
+    0 6px 14px rgba(0,0,0,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+#backfill-summary-done-btn:hover {
+  opacity: 0.95;
+  transform: scale(1.015);
+}
+#backfill-summary-done-btn:active {
+  transform: scale(0.98);
+}
     #status-text {
       font-size: 12px;
       color: #6e6a63;
@@ -909,6 +1151,10 @@
 #api-key-invalid-btn:active {
   transform: scale(0.98);
 }
+#backfill-count-options {
+  margin-bottom: 16px;
+  margin-top: 16px;
+}
   </style>
 </head>
 <body>
@@ -1071,12 +1317,20 @@
       <div class="status-dot"></div>
     </div>
 
-    <!-- STATE 2: connected, no submissions -->
+        <!-- STATE 2: connected, no submissions -->
     <div class="view" id="view-empty">
       <div class="copy">
         <p class="headline">Nothing solved<br>yet</p>
-        <p class="subtext">Solve something on LeetCode — it'll show up right here.</p>
+        <p class="subtext">Solve something on LeetCode — it'll show up right here. Or import your past solutions to get started right away.</p>
       </div>
+      <button id="backfill-start-btn-empty">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Import Past Solutions</span>
+      </button>
     </div>
 
     <!-- STATE: connected, but stored repo no longer exists on GitHub -->
@@ -1145,10 +1399,19 @@
         </div>
       </div>
 
-      <div class="recent-section">
+            <div class="recent-section">
         <div class="recent-heading">RECENT</div>
         <div class="recent-list" id="recent-list"></div>
       </div>
+
+      <button id="backfill-start-btn" style="margin-top: 4px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Import Past Solutions</span>
+      </button>
     </div>
 
     <button id="disconnect-btn">
@@ -1160,6 +1423,117 @@
       Disconnect
     </button>
   </div>
+    <!-- STATE: Backfill picker (shown after clicking "Import Past Solutions") -->
+  <div class="view" id="view-backfill-picker">
+    <div class="account-row">
+      <div class="account-avatar">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </div>
+      <span class="account-name">Import Past Solutions</span>
+      <div class="status-dot"></div>
+    </div>
+
+    <div id="backfill-picker-loading" style="padding: 30px 0; text-align: center;">
+      <p class="subtext" style="max-width: none;">Checking your LeetCode history...</p>
+    </div>
+
+    <div id="backfill-picker-content" style="display: none;">
+      <div>
+        <p class="repo-select-title" id="backfill-found-count">0 new problems found</p>
+        <p class="subtext">Pick how many to import now. You can always come back for the rest later.</p>
+      </div>
+
+      <div id="backfill-count-options" class="visibility-row" style="flex-wrap: wrap; gap: 8px;"></div>
+
+      <div style="flex-grow: 1;"></div>
+
+      <button id="backfill-confirm-btn" class="muted">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span id="backfill-confirm-btn-text">Select a number</span>
+      </button>
+            <button id="backfill-cancel-btn">Cancel</button>
+    </div>
+
+        <div id="backfill-picker-error" style="display: none;">
+      <p class="subtext" style="max-width: none; text-align: center;" id="backfill-picker-error-text">Something went wrong.</p>
+            <button id="backfill-error-back-btn">Go back</button>
+    </div>
+  </div>
+
+  <!-- STATE: Backfill progress (shown while the import loop is running) -->
+  <div class="view" id="view-backfill-progress">
+    <div class="account-row">
+      <div class="account-avatar">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </div>
+      <span class="account-name">Importing Solutions</span>
+      <div class="status-dot"></div>
+    </div>
+
+    <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px;">
+      <div>
+        <p class="repo-select-title" id="backfill-progress-current-name">Starting...</p>
+        <p class="subtext" id="backfill-progress-sub">Preparing import</p>
+      </div>
+
+      <div class="progress-track">
+        <div class="progress-fill" id="backfill-progress-fill" style="width: 0%;"></div>
+      </div>
+
+      <div class="progress-tally">
+        <span class="progress-tally-item success">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="backfill-progress-done">0</span> done
+        </span>
+        <span class="progress-tally-item failed">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/><circle cx="12" cy="12" r="10"/></svg>
+          <span id="backfill-progress-failed">0</span> failed
+        </span>
+      </div>
+    </div>
+
+        <button id="backfill-progress-cancel-btn">Cancel import</button>
+  </div>
+
+  <!-- STATE: Backfill summary (shown after completion if anything failed) -->
+  <div class="view" id="view-backfill-summary">
+    <div class="account-row">
+      <div class="account-avatar">
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </div>
+      <span class="account-name">Import complete</span>
+      <div class="status-dot"></div>
+    </div>
+
+    <div>
+      <p class="repo-select-title" id="backfill-summary-headline">23 of 25 imported</p>
+      <p class="subtext" id="backfill-summary-subtext">2 need a retry</p>
+    </div>
+
+    <div class="summary-failed-list" id="backfill-summary-failed-list"></div>
+
+    <div style="flex-grow: 1;"></div>
+
+    <button id="backfill-summary-retry-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/>
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+      </svg>
+      <span id="backfill-summary-retry-btn-text">Retry failed (2)</span>
+    </button>
+    <button id="backfill-summary-done-btn">Done</button>
+  </div>
+
   <script src="keyVault.js"></script>
   <script src="popup.js"></script>
 </body>

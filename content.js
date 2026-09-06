@@ -841,9 +841,18 @@ function captureProblemDescription() {
  * first Submit action.
  * ========================================================================= */
 
-document.addEventListener('click', function (event) {
+async function isBackfillBlocking() {
+  const { backfillInProgress } = await chrome.storage.local.get("backfillInProgress");
+  return !!backfillInProgress;
+}
+
+document.addEventListener('click', async function (event) {
   const submitBtn = event.target.closest('[data-e2e-locator="console-submit-button"]');
   if (submitBtn) {
+    if (await isBackfillBlocking()) {
+      algosyncToast("failed", "Import in progress", "Finish or cancel your backfill before submitting");
+      return;
+    }
     console.log("🖱️ Submit button clicked! Refreshing problem info...");
     algosyncToast("submitting");
     captureProblemDescription();
@@ -851,9 +860,13 @@ document.addEventListener('click', function (event) {
   }
 });
 
-document.addEventListener('keydown', function (event) {
+document.addEventListener('keydown', async function (event) {
   const isSubmitShortcut = (event.ctrlKey || event.metaKey) && event.key === 'Enter';
   if (isSubmitShortcut) {
+    if (await isBackfillBlocking()) {
+      algosyncToast("failed", "Import in progress", "Finish or cancel your backfill before submitting");
+      return;
+    }
     console.log("⌨️ Ctrl+Enter / Cmd+Enter detected! Refreshing problem info...");
     algosyncToast("submitting");
     captureProblemDescription();

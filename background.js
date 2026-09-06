@@ -3,6 +3,18 @@ console.log("AlgoSync AI: Background service worker running");
 
 const WORKER_URL = "https://cool-mode-3295.algosync-svk.workers.dev";
 
+// Safety net: if the service worker restarts (browser restart, extension
+// reload, or MV3 idle-kill) while backfillInProgress was left "true" from
+// a crashed/interrupted batch, clear it so live submissions never stay
+// permanently blocked. Once the real backfill queue exists, this should
+// be refined to check the queue's actual state instead of clearing blindly.
+chrome.storage.local.get("backfillInProgress", ({ backfillInProgress }) => {
+  if (backfillInProgress) {
+    console.warn("⚠️ backfillInProgress was stuck 'true' on startup — clearing it.");
+    chrome.storage.local.set({ backfillInProgress: false });
+  }
+});
+
 function notifyTab(tabId, toastState, text, sub) {
   if (!tabId) return; // no tab to notify (shouldn't normally happen, but don't crash if so)
   chrome.tabs.sendMessage(tabId, {
@@ -42,7 +54,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   //     .catch((error) => sendResponse({ success: false, error: error.message }));
   //   return true;
   // }
-  if (message.type === "PUSH_TO_GITHUB") {
+    if (message.type === "PUSH_TO_GITHUB") {
     pushToGithub(message.data)
       .then(() => sendResponse({ success: true, pushStatus: "complete" }))
       .catch((error) => {
@@ -58,6 +70,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ success: false, error: error.message, pushStatus: "failed" });
         }
       });
+    return true;
+  }
+
+    if (message.type === "BACKFILL_FETCH_SUBMISSION") {
+    fetchSubmissionFromAPI(message.submissionId, message.titleSlug)
+      .then((data) => sendResponse({ success: true, data }))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+    if (message.type === "BACKFILL_FETCH_LIST") {
+    backfillFetchList()
+      .then((newProblems) => sendResponse({ success: true, newProblems }))
+      .catch((error) => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
+
+  if (message.type === "BACKFILL_START") {
+    // Fire-and-forget: this can run for minutes, so we don't make the
+    // popup wait on a response. Progress is reported via
+    // chrome.storage.local.backfillProgress, which the popup polls.
+    backfillRunImportLoop(message.queue);
+    sendResponse({ started: true });
     return true;
   }
 });
@@ -221,6 +256,491 @@ async function generateExplanation(problemData, tabId) {
 }
 
 
+/* =========================================================================
+ * BACKFILL — fetches a past submission's full data via LeetCode's GraphQL
+ * API instead of live DOM scraping. Produces an object shaped identically
+ * to content.js's finalData, verified via side-by-side comparison against
+ * real live-scraped submissions (all fields matched except a cosmetic
+ * memory-display rounding difference, e.g. "138.17 MB" vs "138.2 MB").
+ * ========================================================================= */
+
+const GRAPHQL_LANG_TO_DISPLAY = {
+  cpp: "C++",
+  java: "Java",
+  python: "Python",
+  python3: "Python3",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  csharp: "C#",
+  c: "C",
+  golang: "Go",
+  kotlin: "Kotlin",
+  swift: "Swift",
+  rust: "Rust",
+  ruby: "Ruby",
+  php: "PHP",
+  dart: "Dart",
+  scala: "Scala",
+  elixir: "Elixir",
+  erlang: "Erlang",
+  racket: "Racket",
+};
+
+// Same logic as content.js's richText/cleanText/cleanConstraint/
+// parseDescriptionContent/buildMarkdown/slugify — duplicated here because
+// background.js (service worker) has no access to content.js's DOM-scoped
+// functions, which only run inside LeetCode tab pages. Confirmed via
+// console testing to work standalone with zero page dependency.
+function backfillStripTags(html) {
+  if (!html) return "";
+  let text = html
+    .replace(/<sup>(.*?)<\/sup>/gi, "^$1")
+    .replace(/<sub>(.*?)<\/sub>/gi, "_$1")
+    .replace(/<[^>]+>/g, "");
+  text = text
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+  text = text.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+  text = text.replace(/\s+([.,;:!?])/g, "$1");
+  return text;
+}
+
+// BACKFILL-ONLY: extracts <div class="example-block">...</div> sections,
+// matching content.js's live DOM parser's example-block handling. Needed
+// because backfillParseHtmlContent's main blockRegex only matches <p>,
+// <pre>, <ul> — it had no awareness of <div class="example-block">, so
+// this-format examples were silently falling into the description text
+// instead of being split out. Confirmed via real HTML inspection (Missing
+// Number problem) that this is a common LeetCode example markup pattern.
+function backfillExtractExamples(html) {
+  if (!html) return [];
+
+  const examples = [];
+  const blockDivRegex = /<div class="example-block">([\s\S]*?)<\/div>/gi;
+  let match;
+
+  while ((match = blockDivRegex.exec(html)) !== null) {
+    const inner = match[1];
+    const lines = [];
+
+    const pRegex = /<p>([\s\S]*?)<\/p>/gi;
+    let pMatch;
+    while ((pMatch = pRegex.exec(inner)) !== null) {
+      const text = backfillStripTags(pMatch[1]);
+      if (text) lines.push(text);
+    }
+
+    if (lines.length) examples.push(lines.join("\n"));
+  }
+
+  return examples;
+}
+
+function backfillParseHtmlContent(html) {
+  const examples = [];
+  const constraints = [];
+  let followUp = null;
+
+  if (!html) return { description: "", examples, constraints, followUp };
+
+  // Pull out <div class="example-block"> examples first (backfill-only
+  // path — mirrors content.js's live example-block handling), then strip
+  // those blocks + their "Example N:" heading <p> tags out of the HTML so
+  // the main block regex below doesn't fold them into the description.
+  const blockExamples = backfillExtractExamples(html);
+  examples.push(...blockExamples);
+
+  let cleanedHtml = html
+    .replace(/<div class="example-block">[\s\S]*?<\/div>/gi, "")
+    .replace(/<p><strong class="example">Example \d+:<\/strong><\/p>/gi, "");
+
+  const blockRegex = /<p>([\s\S]*?)<\/p>|<pre>([\s\S]*?)<\/pre>|<ul>([\s\S]*?)<\/ul>/gi;
+  const descriptionParts = [];
+  let hitConstraints = false;
+  let match;
+
+  while ((match = blockRegex.exec(cleanedHtml)) !== null) {
+    const [, pContent, preContent, ulContent] = match;
+
+    if (pContent !== undefined) {
+      const text = backfillStripTags(pContent);
+      if (/^Constraints:?$/i.test(text)) { hitConstraints = true; continue; }
+      if (/^follow[- ]?up/i.test(text)) { followUp = text; continue; }
+      if (/^Example \d+:?$/i.test(text)) continue;
+      if (!text) continue;
+      if (!hitConstraints) descriptionParts.push(text);
+    } else if (preContent !== undefined) {
+      const raw = preContent.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+      const lines = raw.split("\n").map((ln) => ln.replace(/[ \t]+/g, " ").trim()).filter((ln) => ln !== "");
+      examples.push(lines.join("\n"));
+    } else if (ulContent !== undefined) {
+      const liMatches = [...ulContent.matchAll(/<li>([\s\S]*?)<\/li>/gi)];
+      liMatches.forEach((liMatch) => {
+        const t = backfillStripTags(liMatch[1]);
+        if (t) constraints.push(t);
+      });
+    }
+  }
+
+  const description = descriptionParts.join("\n\n").trim();
+
+  if (!followUp) {
+    const fullText = backfillStripTags(cleanedHtml);
+    const m = fullText.match(/Follow-up:?.*$/i);
+    if (m) followUp = m[0].replace(/\s+([.,;:!?)])/g, "$1").trim();
+  }
+
+  return { description, examples, constraints, followUp };
+}
+
+function backfillSlugify(title) {
+  return (title || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+function backfillBuildMarkdown(data) {
+  const lines = [];
+  const title = data.problemName || "Untitled";
+  lines.push(`[${title}](https://leetcode.com/problems/${backfillSlugify(title)}/)`);
+  lines.push("Solved");
+  if (data.difficulty) lines.push(data.difficulty);
+  if (data.tags && data.tags.length) { lines.push("Topics"); lines.push("Companies"); lines.push("Hint"); }
+  lines.push("");
+  if (data.description) { lines.push(data.description); lines.push(""); }
+  (data.examples || []).forEach((ex, i) => {
+    lines.push(`Example ${i + 1}:`); lines.push(""); lines.push("```"); lines.push(ex); lines.push(""); lines.push("```"); lines.push("");
+  });
+  if (data.constraints && data.constraints.length) {
+    lines.push("Constraints:");
+    data.constraints.forEach((c) => lines.push(c.startsWith("`") ? `   * ${c}` : `   * \`${c}\``));
+    lines.push("");
+  }
+  if (data.followUp) lines.push(data.followUp);
+  return lines.join("\n").trim() + "\n";
+}
+
+// Same lang mapping as getFolderName()/getLanguageSlug() elsewhere —
+// keep in sync intentionally so storage keys never disagree.
+const BACKFILL_GRAPHQL_LANG_TO_SLUG = {
+  cpp: "Cpp",
+  java: "Java",
+  python: "Python",
+  python3: "Python",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  csharp: "CSharp",
+  c: "C",
+  golang: "Go",
+  kotlin: "Kotlin",
+  swift: "Swift",
+  rust: "Rust",
+  ruby: "Ruby",
+  php: "PHP",
+  dart: "Dart",
+  scala: "Scala",
+  elixir: "Elixir",
+  erlang: "Erlang",
+  racket: "Racket",
+};
+
+async function backfillFetchAllSubmissions() {
+  const query = `
+    query submissionList($offset: Int!, $limit: Int!, $questionSlug: String) {
+      submissionList(offset: $offset, limit: $limit, questionSlug: $questionSlug) {
+        hasNext
+        submissions {
+          id
+          title
+          titleSlug
+          statusDisplay
+          lang
+          timestamp
+        }
+      }
+    }
+  `;
+
+  const all = [];
+  let offset = 0;
+  const limit = 20;
+  let hasNext = true;
+  let pageCount = 0;
+  const MAX_PAGES = 200;
+
+  while (hasNext && pageCount < MAX_PAGES) {
+    const res = await fetch("https://leetcode.com/graphql/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ query, variables: { offset, limit, questionSlug: "" } }),
+    });
+
+    const data = await res.json();
+    const page = data?.data?.submissionList;
+
+    if (!page) {
+      console.error("❌ backfillFetchAllSubmissions: bad response at offset", offset, data?.errors);
+      break;
+    }
+
+    all.push(...page.submissions);
+    hasNext = page.hasNext;
+    offset += limit;
+    pageCount++;
+  }
+
+  return all;
+}
+
+function backfillFilterAndDedupe(allSubmissions) {
+  const accepted = allSubmissions.filter((s) => s.statusDisplay === "Accepted");
+
+  const seen = new Map();
+  for (const sub of accepted) {
+    const key = `${sub.titleSlug}|${sub.lang}`;
+    if (!seen.has(key)) seen.set(key, sub);
+  }
+
+  return Array.from(seen.values());
+}
+
+async function backfillFindNewProblems(dedupedCandidates) {
+  const { submissions = {} } = await chrome.storage.local.get("submissions");
+
+  const newProblems = [];
+
+  for (const candidate of dedupedCandidates) {
+    const langSlug = BACKFILL_GRAPHQL_LANG_TO_SLUG[candidate.lang.toLowerCase()] || candidate.lang;
+
+    const matchedProblem = Object.values(submissions).find((p) => {
+      const storedUrl = p.languages?.[langSlug]?.url;
+      const storedSlug = storedUrl ? storedUrl.split("/problems/")[1]?.split("/")[0] : null;
+      return storedSlug === candidate.titleSlug;
+    });
+
+    const pushStatus = matchedProblem?.languages?.[langSlug]?.pushStatus;
+
+    if (pushStatus !== "complete") {
+      newProblems.push({ ...candidate, langSlug });
+    }
+  }
+
+  return newProblems;
+}
+
+async function backfillFetchList() {
+  const allSubmissions = await backfillFetchAllSubmissions();
+  const deduped = backfillFilterAndDedupe(allSubmissions);
+  const newProblems = await backfillFindNewProblems(deduped);
+  return newProblems;
+}
+
+// Runs the full import pipeline (fetch -> explanation -> storage merge ->
+// GitHub push) over a queue of candidates, sequentially, with a delay
+// between items. Continues past per-item failures rather than aborting
+// the whole batch — failures are recorded and reported at the end.
+// Progress is written to chrome.storage.local.backfillProgress after
+// every item so the popup can poll it live, even after being closed and
+// reopened mid-batch. Checks backfillCancelRequested between items so a
+// user-requested cancel takes effect after the current item finishes,
+// never mid-item (avoids leaving a half-written storage/GitHub state).
+async function backfillRunImportLoop(queue, delayMs = 3000) {
+  await chrome.storage.local.set({ backfillInProgress: true });
+
+  let done = 0;
+  let failed = 0;
+  const failedItems = [];
+
+  for (let i = 0; i < queue.length; i++) {
+    const { backfillCancelRequested } = await chrome.storage.local.get("backfillCancelRequested");
+    if (backfillCancelRequested) {
+      console.log("🛑 Backfill cancelled by user — stopping before next item.");
+      break;
+    }
+
+    const candidate = queue[i];
+
+    await chrome.storage.local.set({
+      backfillProgress: { current: i, total: queue.length, currentProblem: candidate.title, done, failed },
+    });
+
+    try {
+      const submissionId = parseInt(candidate.id, 10);
+      const finalData = await fetchSubmissionFromAPI(submissionId, candidate.titleSlug);
+      if (!finalData) throw new Error("fetchSubmissionFromAPI returned null");
+
+      const explanation = await generateExplanation(finalData, null);
+
+      const problemNumber = finalData.problemNumber;
+      const langSlug = candidate.langSlug;
+
+      const { submissions = {} } = await chrome.storage.local.get("submissions");
+      const problem = submissions[problemNumber] || {};
+
+      const {
+        code, language, url, timestamp,
+        testCasesPassed, runtime, runtimeBeats, memory, memoryBeats,
+        ...sharedFields
+      } = finalData;
+
+      const mergedProblem = {
+        ...problem,
+        ...sharedFields,
+        problemNumber,
+        languages: {
+          ...problem.languages,
+          [langSlug]: {
+            code, language, url, timestamp,
+            testCasesPassed, runtime, runtimeBeats, memory, memoryBeats,
+            explanation,
+            pushStatus: "pending",
+          },
+        },
+      };
+
+      submissions[problemNumber] = mergedProblem;
+      await chrome.storage.local.set({ submissions });
+
+      const pushData = { ...mergedProblem, langSlug, _isUpdate: false };
+      await pushToGithub(pushData);
+
+      const latest = await chrome.storage.local.get("submissions");
+      const subs = latest.submissions || {};
+      if (subs[problemNumber]?.languages?.[langSlug]) {
+        subs[problemNumber].languages[langSlug].pushStatus = "complete";
+        await chrome.storage.local.set({ submissions: subs });
+      }
+
+      done++;
+      console.log(`✅ [${i + 1}/${queue.length}] Imported: ${candidate.title} (${langSlug})`);
+        } catch (error) {
+      failed++;
+      // Preserve id + titleSlug (not just title/langSlug) so a failed item
+      // can be re-queued and re-run through the exact same pipeline later
+      // via the "Retry Failed" flow — without these two fields there's no
+      // way to re-fetch the problem at all.
+      failedItems.push({
+        id: candidate.id,
+        titleSlug: candidate.titleSlug,
+        title: candidate.title,
+        langSlug: candidate.langSlug,
+        error: error.message,
+      });
+      console.error(`❌ [${i + 1}/${queue.length}] Failed: ${candidate.title} —`, error.message);
+    }
+
+    await chrome.storage.local.set({
+      backfillProgress: { current: i + 1, total: queue.length, currentProblem: candidate.title, done, failed },
+    });
+
+    if (i < queue.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  await chrome.storage.local.set({
+    backfillInProgress: false,
+    backfillCancelRequested: false,
+    backfillLastRunSummary: { total: queue.length, done, failed, failedItems, finishedAt: new Date().toISOString() },
+  });
+
+  console.log(`🎉 Backfill batch finished: ${done} done, ${failed} failed, out of ${queue.length}`);
+}
+
+// Fetches a single past submission's full data via GraphQL. Returns an
+// object shaped identically to content.js's finalData, ready to pass
+// directly into saveSubmission()'s equivalent logic.
+async function fetchSubmissionFromAPI(submissionId, titleSlug) {
+  const detailQuery = `
+    query submissionDetails($submissionId: Int!) {
+      submissionDetails(submissionId: $submissionId) {
+        runtimeDisplay
+        runtimePercentile
+        memoryDisplay
+        memoryPercentile
+        code
+        lang { name }
+        question { questionFrontendId title titleSlug }
+        totalCorrect
+        totalTestcases
+        timestamp
+      }
+    }
+  `;
+
+  const detailRes = await fetch("https://leetcode.com/graphql/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ query: detailQuery, variables: { submissionId } }),
+  });
+  const detailData = await detailRes.json();
+  const detail = detailData?.data?.submissionDetails;
+  if (!detail) {
+    console.error("❌ backfill: submissionDetails failed:", detailData?.errors);
+    return null;
+  }
+
+  const slug = titleSlug || detail.question.titleSlug;
+  const questionQuery = `
+    query questionContent($titleSlug: String!) {
+      question(titleSlug: $titleSlug) {
+        difficulty
+        content
+        topicTags { name }
+      }
+    }
+  `;
+
+  const questionRes = await fetch("https://leetcode.com/graphql/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ query: questionQuery, variables: { titleSlug: slug } }),
+  });
+  const questionData = await questionRes.json();
+  const question = questionData?.data?.question;
+  if (!question) {
+    console.error("❌ backfill: question query failed:", questionData?.errors);
+    return null;
+  }
+
+    // Service workers have neither `document` nor `DOMParser` — parse the
+  // raw HTML with plain string/regex logic instead of a DOM tree.
+  const parsed = backfillParseHtmlContent(question.content || "");
+
+  const problemNumber = detail.question.questionFrontendId;
+  const problemName = detail.question.title;
+  const language = GRAPHQL_LANG_TO_DISPLAY[detail.lang.name.toLowerCase()] || detail.lang.name;
+
+  const problemInfoShape = {
+    problemNumber,
+    problemName,
+    difficulty: question.difficulty,
+    tags: question.topicTags.map((t) => t.name),
+    description: parsed.description,
+    examples: parsed.examples,
+    constraints: parsed.constraints,
+    followUp: parsed.followUp,
+  };
+
+  return {
+    ...problemInfoShape,
+    markdown: backfillBuildMarkdown(problemInfoShape),
+    testCasesPassed: `${detail.totalCorrect}/${detail.totalTestcases}`,
+    runtime: detail.runtimeDisplay,
+    runtimeBeats: `${detail.runtimePercentile.toFixed(2)}%`,
+    memory: detail.memoryDisplay,
+    memoryBeats: `${detail.memoryPercentile.toFixed(2)}%`,
+    code: detail.code,
+    language,
+    url: `https://leetcode.com/problems/${slug}/submissions/${submissionId}/`,
+    timestamp: new Date(detail.timestamp * 1000).toISOString(),
+  };
+}
 
 
 function getFileExtension(language) {

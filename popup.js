@@ -17,6 +17,39 @@ const connectBtn = document.getElementById("connect-btn");
 const btnText = document.getElementById("btn-text");
 const statusText = document.getElementById("status-text");
 const disconnectBtn = document.getElementById("disconnect-btn");
+const backfillStartBtn = document.getElementById("backfill-start-btn");
+const backfillStartBtnEmpty = document.getElementById("backfill-start-btn-empty");
+const viewBackfillPicker = document.getElementById("view-backfill-picker");
+const backfillPickerLoading = document.getElementById("backfill-picker-loading");
+const backfillPickerContent = document.getElementById("backfill-picker-content");
+const backfillPickerError = document.getElementById("backfill-picker-error");
+const backfillPickerErrorText = document.getElementById("backfill-picker-error-text");
+const backfillErrorBackBtn = document.getElementById("backfill-error-back-btn");
+const backfillFoundCount = document.getElementById("backfill-found-count");
+const backfillCountOptions = document.getElementById("backfill-count-options");
+const backfillConfirmBtn = document.getElementById("backfill-confirm-btn");
+const backfillConfirmBtnText = document.getElementById("backfill-confirm-btn-text");
+const backfillCancelBtn = document.getElementById("backfill-cancel-btn");
+
+const viewBackfillProgress = document.getElementById("view-backfill-progress");
+const backfillProgressCurrentName = document.getElementById("backfill-progress-current-name");
+const backfillProgressSub = document.getElementById("backfill-progress-sub");
+const backfillProgressFill = document.getElementById("backfill-progress-fill");
+const backfillProgressDone = document.getElementById("backfill-progress-done");
+const backfillProgressFailed = document.getElementById("backfill-progress-failed");
+const backfillProgressCancelBtn = document.getElementById("backfill-progress-cancel-btn");
+let backfillPollInterval = null;
+
+const viewBackfillSummary = document.getElementById("view-backfill-summary");
+const backfillSummaryHeadline = document.getElementById("backfill-summary-headline");
+const backfillSummarySubtext = document.getElementById("backfill-summary-subtext");
+const backfillSummaryFailedList = document.getElementById("backfill-summary-failed-list");
+const backfillSummaryRetryBtn = document.getElementById("backfill-summary-retry-btn");
+const backfillSummaryRetryBtnText = document.getElementById("backfill-summary-retry-btn-text");
+const backfillSummaryDoneBtn = document.getElementById("backfill-summary-done-btn");
+
+let backfillNewProblems = [];
+let backfillSelectedCount = null;
 const accountName = document.getElementById("account-name");
 const recentList = document.getElementById("recent-list");
 
@@ -150,7 +183,7 @@ apiKeyConfirmBtn.addEventListener("click", async () => {
  * VIEW SWITCHING
  * ========================================================================= */
 function showTopView(view) {
-  [viewDisconnected, viewConnected, viewRepoSelect, viewApiKey].forEach((v) => v.classList.remove("active"));
+  [viewDisconnected, viewConnected, viewRepoSelect, viewApiKey, viewBackfillPicker, viewBackfillProgress, viewBackfillSummary].forEach((v) => v.classList.remove("active"));
   view.classList.add("active");
 }
 
@@ -201,6 +234,25 @@ function showSubView(view) {
 // }
 
 async function init() {
+  // If a batch is genuinely still running, jump straight to the progress
+  // screen and resume polling instead of resetting to the normal view.
+  // Only clear backfillInProgress when it's stale (no active loop) — the
+  // loop itself always clears this flag when it finishes, so if it's
+  // still true here, background.js is still actively processing.
+  const { backfillInProgress, backfillProgress } = await chrome.storage.local.get(["backfillInProgress", "backfillProgress"]);
+
+  if (backfillInProgress && backfillProgress) {
+    showTopView(viewBackfillProgress);
+    backfillProgressCancelBtn.disabled = false;
+    backfillProgressCancelBtn.textContent = "Cancel import";
+    startBackfillProgressPolling();
+    return;
+  }
+
+  // No batch running — safe to clear any stale flag left over from a
+  // crash or interrupted session.
+  await chrome.storage.local.set({ backfillInProgress: false });
+
   const result = await chrome.storage.local.get([
     "githubToken",
     "githubUsername",
@@ -761,6 +813,243 @@ async function disconnectGithub() {
   repoSearchInput.value = "";
   init();
 }
+
+/* =========================================================================
+ * BACKFILL — picker screen
+ * ========================================================================= */
+
+function resetBackfillPickerView() {
+  backfillPickerLoading.style.display = "block";
+  backfillPickerContent.style.display = "none";
+  backfillPickerError.style.display = "none";
+  backfillSelectedCount = null;
+
+  // Reset the confirm button's visual state too — it's not recreated
+  // between opens, so without this it kept showing the previous
+  // selection ("Import 10") even though backfillSelectedCount was
+  // correctly cleared underneath.
+  backfillConfirmBtn.classList.add("muted");
+  backfillConfirmBtn.style.display = "flex";
+  backfillConfirmBtnText.textContent = "Select a number";
+}
+
+async function handleBackfillStartClick() {
+  showTopView(viewBackfillPicker);
+  resetBackfillPickerView();
+
+  chrome.runtime.sendMessage({ type: "BACKFILL_FETCH_LIST" }, (response) => {
+    if (!response || !response.success) {
+      backfillPickerLoading.style.display = "none";
+      backfillPickerError.style.display = "block";
+      backfillPickerErrorText.textContent = response?.error || "Couldn't fetch your LeetCode history. Try again.";
+      return;
+    }
+
+    backfillNewProblems = response.newProblems || [];
+    renderBackfillPicker();
+  });
+}
+
+backfillStartBtn.addEventListener("click", handleBackfillStartClick);
+backfillStartBtnEmpty.addEventListener("click", handleBackfillStartClick);
+
+function renderBackfillPicker() {
+  backfillPickerLoading.style.display = "none";
+  backfillPickerContent.style.display = "block";
+
+  const total = backfillNewProblems.length;
+  backfillFoundCount.textContent = total === 0
+    ? "You're all caught up!"
+    : `${total} new problem${total === 1 ? "" : "s"} found`;
+
+  backfillCountOptions.innerHTML = "";
+
+  if (total === 0) {
+    backfillConfirmBtn.style.display = "none";
+    return;
+  }
+
+    const MAX_CAP = 50;
+  // Exclude MAX_CAP itself from the step list — the "All/Max" button
+  // below already represents that value, so including it here created
+  // a visible duplicate (e.g. "50" and "Max (50)" side by side).
+  const steps = [10, 20, 30, 40].filter((n) => n < total);
+  const cappedTotal = Math.min(total, MAX_CAP);
+
+  steps.forEach((n) => {
+    const btn = createCountOptionButton(n, `${n}`);
+    backfillCountOptions.appendChild(btn);
+  });
+
+  // Always offer "All" (capped at MAX_CAP) as the final option, labeled
+  // with however many that actually is.
+  const allLabel = cappedTotal < total ? `Max (${MAX_CAP})` : `All (${total})`;
+  const allBtn = createCountOptionButton(cappedTotal, allLabel);
+  backfillCountOptions.appendChild(allBtn);
+}
+
+function createCountOptionButton(count, label) {
+  const btn = document.createElement("div");
+  btn.className = "visibility-option";
+  btn.style.flex = "0 0 auto";
+  btn.style.padding = "10px 16px";
+  btn.textContent = label;
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#backfill-count-options .visibility-option").forEach((el) => el.classList.remove("selected"));
+    btn.classList.add("selected");
+    backfillSelectedCount = count;
+    backfillConfirmBtn.classList.remove("muted");
+    backfillConfirmBtnText.textContent = `Import ${count}`;
+  });
+  return btn;
+}
+
+backfillCancelBtn.addEventListener("click", () => {
+  init();
+});
+
+backfillErrorBackBtn.addEventListener("click", () => {
+  init();
+});
+
+function startBackfillProgressPolling() {
+  updateBackfillProgressUI();
+  backfillPollInterval = setInterval(updateBackfillProgressUI, 1000);
+}
+
+function stopBackfillProgressPolling() {
+  if (backfillPollInterval) {
+    clearInterval(backfillPollInterval);
+    backfillPollInterval = null;
+  }
+}
+
+async function updateBackfillProgressUI() {
+  const { backfillProgress, backfillInProgress } = await chrome.storage.local.get(["backfillProgress", "backfillInProgress"]);
+
+  if (!backfillProgress) return;
+
+  const { current, total, currentProblem, done, failed } = backfillProgress;
+
+  backfillProgressCurrentName.textContent = currentProblem || "Working...";
+  backfillProgressSub.textContent = `Importing ${current} of ${total}`;
+
+  const percent = total > 0 ? Math.round((current / total) * 100) : 0;
+  backfillProgressFill.style.width = `${percent}%`;
+
+  backfillProgressDone.textContent = done ?? 0;
+  backfillProgressFailed.textContent = failed ?? 0;
+
+    if (!backfillInProgress && current >= total) {
+    stopBackfillProgressPolling();
+
+    setTimeout(async () => {
+      const { backfillLastRunSummary } = await chrome.storage.local.get("backfillLastRunSummary");
+
+      if (backfillLastRunSummary && backfillLastRunSummary.failed > 0) {
+        renderBackfillSummary(backfillLastRunSummary);
+        showTopView(viewBackfillSummary);
+      } else {
+        init();
+      }
+    }, 1200);
+  }
+}
+
+function renderBackfillSummary(summary) {
+  const { total, done, failed, failedItems } = summary;
+
+  backfillSummaryHeadline.textContent = `${done} of ${total} imported`;
+    backfillSummarySubtext.textContent = failed === 1 ? "1 problem needs a retry" : `${failed} problems need a retry`;
+  backfillSummaryRetryBtnText.textContent = `Retry failed (${failed})`;
+
+  backfillSummaryFailedList.innerHTML = "";
+  failedItems.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "summary-failed-row";
+
+    const titleLine = document.createElement("div");
+    titleLine.className = "summary-failed-title";
+    titleLine.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/><circle cx="12" cy="12" r="10"/></svg>
+      <span>${item.title} (${item.langSlug})</span>
+    `;
+
+    const errorLine = document.createElement("div");
+    errorLine.className = "summary-failed-error";
+    errorLine.textContent = item.error;
+
+    row.appendChild(titleLine);
+    row.appendChild(errorLine);
+
+    if (item.titleSlug) {
+      const link = document.createElement("a");
+      link.className = "summary-failed-link";
+      link.href = `https://leetcode.com/problems/${item.titleSlug}/`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "View on LeetCode →";
+      row.appendChild(link);
+    }
+
+    backfillSummaryFailedList.appendChild(row);
+  });
+}
+
+backfillProgressCancelBtn.addEventListener("click", async () => {
+  await chrome.storage.local.set({ backfillCancelRequested: true });
+  backfillProgressCancelBtn.disabled = true;
+  backfillProgressCancelBtn.textContent = "Cancelling...";
+});
+
+backfillSummaryDoneBtn.addEventListener("click", () => {
+  init();
+});
+
+backfillSummaryRetryBtn.addEventListener("click", async () => {
+  const { backfillLastRunSummary } = await chrome.storage.local.get("backfillLastRunSummary");
+  const retryQueue = (backfillLastRunSummary?.failedItems || []).map((item) => ({
+    id: item.id,
+    titleSlug: item.titleSlug,
+    title: item.title,
+    langSlug: item.langSlug,
+  }));
+
+  if (retryQueue.length === 0) {
+    init();
+    return;
+  }
+
+  await chrome.storage.local.set({
+    backfillCancelRequested: false,
+    backfillProgress: { current: 0, total: retryQueue.length, currentProblem: "Starting...", done: 0, failed: 0 },
+  });
+
+  chrome.runtime.sendMessage({ type: "BACKFILL_START", queue: retryQueue });
+
+  backfillProgressCancelBtn.disabled = false;
+  backfillProgressCancelBtn.textContent = "Cancel import";
+  showTopView(viewBackfillProgress);
+  startBackfillProgressPolling();
+});
+
+backfillConfirmBtn.addEventListener("click", async () => {
+  if (!backfillSelectedCount) return;
+
+  const queue = backfillNewProblems.slice(0, backfillSelectedCount);
+
+  await chrome.storage.local.set({
+    backfillCancelRequested: false,
+    backfillProgress: { current: 0, total: queue.length, currentProblem: "Starting...", done: 0, failed: 0 },
+  });
+
+  chrome.runtime.sendMessage({ type: "BACKFILL_START", queue });
+
+  backfillProgressCancelBtn.disabled = false;
+  backfillProgressCancelBtn.textContent = "Cancel import";
+  showTopView(viewBackfillProgress);
+  startBackfillProgressPolling();
+});
 
 connectBtn.addEventListener("click", startGithubAuth);
 disconnectBtn.addEventListener("click", disconnectGithub);
