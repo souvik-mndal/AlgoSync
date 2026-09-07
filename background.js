@@ -645,6 +645,10 @@ async function backfillRunImportLoop(queue, delayMs = 3000) {
     backfillInProgress: false,
     backfillCancelRequested: false,
     backfillLastRunSummary: { total: queue.length, done, failed, failedItems, finishedAt: new Date().toISOString() },
+    // Marks that a summary is waiting to be seen — the popup checks this
+    // on every open and keeps showing the summary screen (instead of
+    // stats) until the user explicitly clicks Done or Retry.
+    backfillSummaryPending: failed > 0,
   });
 
   console.log(`🎉 Backfill batch finished: ${done} done, ${failed} failed, out of ${queue.length}`);

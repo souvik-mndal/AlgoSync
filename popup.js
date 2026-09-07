@@ -249,8 +249,20 @@ async function init() {
     return;
   }
 
-  // No batch running — safe to clear any stale flag left over from a
-  // crash or interrupted session.
+  // No batch running — but if a summary is still unresolved (the user
+  // hasn't clicked Done or Retry yet), keep showing it instead of
+  // jumping to stats. This is what lets the summary survive a popup
+  // close/reopen, and it also naturally blocks starting a new import
+  // until the old failure is dealt with.
+  const { backfillSummaryPending, backfillLastRunSummary } = await chrome.storage.local.get(["backfillSummaryPending", "backfillLastRunSummary"]);
+  if (backfillSummaryPending && backfillLastRunSummary) {
+    renderBackfillSummary(backfillLastRunSummary);
+    showTopView(viewBackfillSummary);
+    return;
+  }
+
+  // No batch running and no unresolved summary — safe to clear any stale
+  // flag left over from a crash or interrupted session.
   await chrome.storage.local.set({ backfillInProgress: false });
 
   const result = await chrome.storage.local.get([
@@ -940,7 +952,7 @@ async function updateBackfillProgressUI() {
   backfillProgressDone.textContent = done ?? 0;
   backfillProgressFailed.textContent = failed ?? 0;
 
-    if (!backfillInProgress && current >= total) {
+    if (!backfillInProgress) {
     stopBackfillProgressPolling();
 
     setTimeout(async () => {
@@ -1002,7 +1014,8 @@ backfillProgressCancelBtn.addEventListener("click", async () => {
   backfillProgressCancelBtn.textContent = "Cancelling...";
 });
 
-backfillSummaryDoneBtn.addEventListener("click", () => {
+backfillSummaryDoneBtn.addEventListener("click", async () => {
+  await chrome.storage.local.set({ backfillSummaryPending: false });
   init();
 });
 
@@ -1016,20 +1029,36 @@ backfillSummaryRetryBtn.addEventListener("click", async () => {
   }));
 
   if (retryQueue.length === 0) {
+    await chrome.storage.local.set({ backfillSummaryPending: false });
     init();
     return;
   }
 
+  // Switch the screen FIRST, synchronously, before touching storage or
+  // messaging the background — this guarantees the user sees the
+  // progress screen immediately, with zero dependency on how fast
+  // storage writes/reads happen. We are the ones initiating this, so we
+  // don't need to ask storage "what screen should I be on?" right now.
+  showTopView(viewBackfillProgress);
+  backfillProgressCurrentName.textContent = "Starting...";
+  backfillProgressSub.textContent = `Importing 0 of ${retryQueue.length}`;
+  backfillProgressFill.style.width = "0%";
+  backfillProgressDone.textContent = "0";
+  backfillProgressFailed.textContent = "0";
+  backfillProgressCancelBtn.disabled = false;
+  backfillProgressCancelBtn.textContent = "Cancel import";
+
+  // Now write the fresh state — explicitly wiping every flag that could
+  // cause stale-state confusion, in one atomic set() call.
   await chrome.storage.local.set({
+    backfillSummaryPending: false,
+    backfillInProgress: true,
     backfillCancelRequested: false,
     backfillProgress: { current: 0, total: retryQueue.length, currentProblem: "Starting...", done: 0, failed: 0 },
   });
 
   chrome.runtime.sendMessage({ type: "BACKFILL_START", queue: retryQueue });
 
-  backfillProgressCancelBtn.disabled = false;
-  backfillProgressCancelBtn.textContent = "Cancel import";
-  showTopView(viewBackfillProgress);
   startBackfillProgressPolling();
 });
 
@@ -1038,16 +1067,26 @@ backfillConfirmBtn.addEventListener("click", async () => {
 
   const queue = backfillNewProblems.slice(0, backfillSelectedCount);
 
+  // Switch the screen FIRST, before any storage write — same fix as the
+  // retry button, avoiding any race with the progress poll.
+  showTopView(viewBackfillProgress);
+  backfillProgressCurrentName.textContent = "Starting...";
+  backfillProgressSub.textContent = `Importing 0 of ${queue.length}`;
+  backfillProgressFill.style.width = "0%";
+  backfillProgressDone.textContent = "0";
+  backfillProgressFailed.textContent = "0";
+  backfillProgressCancelBtn.disabled = false;
+  backfillProgressCancelBtn.textContent = "Cancel import";
+
   await chrome.storage.local.set({
+    backfillSummaryPending: false,
+    backfillInProgress: true,
     backfillCancelRequested: false,
     backfillProgress: { current: 0, total: queue.length, currentProblem: "Starting...", done: 0, failed: 0 },
   });
 
   chrome.runtime.sendMessage({ type: "BACKFILL_START", queue });
 
-  backfillProgressCancelBtn.disabled = false;
-  backfillProgressCancelBtn.textContent = "Cancel import";
-  showTopView(viewBackfillProgress);
   startBackfillProgressPolling();
 });
 
